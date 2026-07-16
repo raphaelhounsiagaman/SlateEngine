@@ -3,8 +3,8 @@ project "SlateEngine"
   language "C++"
   cppdialect "C++23"
 
-  targetdir ("bin/%{cfg.buildcfg}")
-  objdir ("bin/Intermediates/%{cfg.builcfg}")
+  targetdir ("../bin/%{cfg.buildcfg}")
+  objdir ("../bin/Intermediates/%{cfg.builcfg}")
 
   files
   {
@@ -16,15 +16,11 @@ project "SlateEngine"
     "src/**.hxx",
     "src/**.h",
 
-    --"vendor/DearImGUI/**.h",
-    --"vendor/DearImGUI/**.cpp",
   }
 
   includedirs
   {
     "src",
-
-    --"vendor/DearImGUI",
 
   }
 
