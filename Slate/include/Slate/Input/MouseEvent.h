@@ -3,6 +3,7 @@
 #include "Slate/Math/Vector.h"
 
 #include "Event.h"
+#include "MouseCodes.h"
 
 #include <format>
 
@@ -12,12 +13,14 @@ namespace Slate
 	class MouseMovedEvent : public Event
 	{
 	public:
-		MouseMovedEvent(unsigned int x, unsigned int y)
-			: m_MousePosition(x, y) {}
+		MouseMovedEvent(int x, int y, int deltaX, int deltaY)
+			: m_MousePosition{ x, y }, m_MouseDelta{ deltaX, deltaY }
+		{}
 
-		inline Vector2<unsigned int> GetPosition() const { return m_MousePosition; }
-		inline unsigned int GetX() const { return m_MousePosition.X; }
-		inline unsigned int GetY() const { return m_MousePosition.Y; }
+		Vector2i GetPosition() const { return m_MousePosition; }
+		Vector2i GetDelta() const { return m_MouseDelta; }
+		int GetX() const { return m_MousePosition.X; }
+		int GetY() const { return m_MousePosition.Y; }
 
 		std::string ToString() const override
 		{
@@ -26,17 +29,18 @@ namespace Slate
 
 		EVENT_CLASS_TYPE(MouseMoved)
 	private:
-		Vector2<unsigned int> m_MousePosition;
+		Vector2i m_MousePosition;
+		Vector2i m_MouseDelta;
 	};
 
 	class MouseScrolledEvent : public Event
 	{
 	public:
-		MouseScrolledEvent(int xOffset, int yOffset)
+		MouseScrolledEvent(float xOffset, float yOffset)
 			: m_XOffset(xOffset), m_YOffset(yOffset) {}
 
-		inline int GetXOffset() const { return m_XOffset; }
-		inline int GetYOffset() const { return m_YOffset; }
+		float GetXOffset() const { return m_XOffset; }
+		float GetYOffset() const { return m_YOffset; }
 
 		std::string ToString() const override
 		{
@@ -45,29 +49,33 @@ namespace Slate
 
 		EVENT_CLASS_TYPE(MouseScrolled)
 	private:
-		int m_XOffset, m_YOffset;
+		float m_XOffset;
+		float m_YOffset;
 	};
 
 	class MouseButtonEvent : public Event
 	{
 	public:
-		inline int GetMouseButton() const { return m_Button; }
+		MouseButton GetMouseButton() const { return m_Button; }
 	protected:
-		MouseButtonEvent(int button)
+		MouseButtonEvent(MouseButton button)
 			: m_Button(button) {}
 
-		int m_Button;
+		MouseButton m_Button;
 	};
 
 	class MouseButtonPressedEvent : public MouseButtonEvent
 	{
 	public:
-		MouseButtonPressedEvent(int button)
+		MouseButtonPressedEvent(MouseButton button)
 			: MouseButtonEvent(button) {}
 
 		std::string ToString() const override
 		{
-			return std::format("MouseButtonPressedEvent: {}", m_Button);
+			return std::format(
+				"MouseButtonPressedEvent: {}",
+				static_cast<unsigned int>(m_Button)
+			);
 		}
 
 		EVENT_CLASS_TYPE(MouseButtonPressed)
@@ -76,12 +84,15 @@ namespace Slate
 	class MouseButtonReleasedEvent : public MouseButtonEvent
 	{
 	public:
-		MouseButtonReleasedEvent(int button)
+		MouseButtonReleasedEvent(MouseButton button)
 			: MouseButtonEvent(button) {}
 
 		std::string ToString() const override
 		{
-			return std::format("MouseButtonReleasedEvent: {}", m_Button);
+			return std::format(
+				"MouseButtonReleasedEvent: {}",
+				static_cast<unsigned int>(m_Button)
+			);
 		}
 
 		EVENT_CLASS_TYPE(MouseButtonReleased)
