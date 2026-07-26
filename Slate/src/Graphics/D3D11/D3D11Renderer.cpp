@@ -268,21 +268,20 @@ namespace Slate
 
     void Renderer::Implementation::Resize(unsigned int width, unsigned int height)
     {
-        if (!m_D3D11SwapChain)
+        if (!m_D3D11SwapChain || width == 0 || height == 0)
         {
             return;
         }
 
-        if (width == 0 || height == 0)
+        if (width == m_ViewportWidth && height == m_ViewportHeight)
         {
             return;
         }
 
-        m_D3D11DeviceContext->OMSetRenderTargets(
-            0,
-            nullptr,
-            nullptr
-        );
+        // ResizeBuffers requires every reference to the old back buffer to be
+        // released. ClearState also removes bindings outside the output merger.
+        m_D3D11DeviceContext->ClearState();
+        m_D3D11DeviceContext->Flush();
 
         m_D3D11RenderTargetView.Reset();
         m_D3D11DepthStencilView.Reset();
@@ -303,7 +302,6 @@ namespace Slate
         CreateDepthBuffer(width, height);
 
         SetViewport(width, height);
-
     }
 
     void Renderer::Implementation::Destroy()
