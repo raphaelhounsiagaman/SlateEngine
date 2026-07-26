@@ -62,7 +62,7 @@ namespace Slate
 			x * inverseLength,
 			y * inverseLength,
 			z * inverseLength,
-			w
+			w * inverseLength
 		};
 	}
 
