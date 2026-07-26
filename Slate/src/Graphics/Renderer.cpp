@@ -23,7 +23,7 @@ namespace Slate
 		void SetViewport(unsigned int width, unsigned int height);
 		void ResizeRenderer(unsigned int width, unsigned int height);
 
-
+        void Destroy();
 
         void BeginFrame();
         void Present();
@@ -60,15 +60,16 @@ namespace Slate
 
     void Renderer::Create(HWND windowHandle, unsigned int width, unsigned int height)
     {
-        
         m_Implementation->CreateDeviceAndSwapChain(windowHandle, width, height);
         m_Implementation->CreateRenderTarget();
+		m_Implementation->CreateDepthBuffer(width, height);
+
         m_Implementation->SetViewport(width, height);
     }
 
     void Renderer::Destroy()
     {
-
+        m_Implementation->Destroy();
     }
 
     void Renderer::BeginFrame()
@@ -306,6 +307,23 @@ namespace Slate
         CreateRenderTarget();
 
         SetViewport(width, height);
+    }
+
+    void Renderer::Implementation::Destroy()
+    {
+        if (m_D3D11DeviceContext)
+        {
+            m_D3D11DeviceContext->ClearState();
+            m_D3D11DeviceContext->Flush();
+        }
+
+        m_D3D11DepthStencilView.Reset();
+        m_D3D11DepthBuffer.Reset();
+        m_D3D11RenderTargetView.Reset();
+
+        m_D3D11SwapChain.Reset();
+        m_D3D11DeviceContext.Reset();
+        m_D3D11Device.Reset();
     }
 
     void Renderer::Implementation::BeginFrame()
