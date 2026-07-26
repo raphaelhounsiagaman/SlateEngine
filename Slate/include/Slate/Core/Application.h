@@ -52,6 +52,8 @@ namespace Slate
 	private:
 
 		void Stop();
+		bool OnWindowClose(WindowCloseEvent& event);
+		bool OnWindowResize(WindowResizeEvent& event);
 
 		bool m_Running = false;
 

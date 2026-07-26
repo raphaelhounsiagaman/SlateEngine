@@ -1,7 +1,10 @@
 #pragma once
 
+#include "Slate/Input/Event.h"
+
 #include <Windows.h>
 
+#include <functional>
 #include <string>
 
 namespace Slate
@@ -28,18 +31,23 @@ namespace Slate
 	class Window
 	{
 	public:
+		using EventCallback = std::function<void(Event&)>;
+
 		Window() = default;
 		~Window() = default;
 
+		Window(const Window&) = delete;
+		Window& operator=(const Window&) = delete;
+
+		void SetEventCallback(EventCallback callback);
 		void Create(const WindowInformation& info);
 		void Destroy();
 
 		void ProcessEvents();
+		void WaitForEvents() const;
 
 		bool ShouldClose() const { return m_ShouldClose; }
-
-		bool WasResized() const { return m_WasResized; }
-		void ClearResizedFlag() { m_WasResized = false; }
+		bool IsMinimized() const { return m_IsMinimized; }
 
 		HWND GetHandle() const { return m_WindowHandle; }
 
@@ -56,6 +64,8 @@ namespace Slate
 			LPARAM lParam
 		);
 
+		LRESULT HandleMessage(UINT message, WPARAM wParam, LPARAM lParam);
+
 	private:
 
 		const std::wstring c_WindowClassName = L"SlateWindowClass";
@@ -64,11 +74,12 @@ namespace Slate
 		HWND m_WindowHandle = nullptr;
 
 		bool m_ShouldClose = false;
-		bool m_WasResized = false;
+		bool m_IsMinimized = false;
 
 		// TODO: UPDATE THIS TO USE VECTOR
 		unsigned int m_Width = 0;
 		unsigned int m_Height = 0;
 
+		EventCallback m_EventCallback;
 	};
 }

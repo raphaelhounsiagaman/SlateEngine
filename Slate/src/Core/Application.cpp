@@ -1,5 +1,7 @@
 #include "Slate/Core/Application.h"
 
+#include "Slate/Input/Input.h"
+
 #include <ranges>
 #include <chrono>
 
@@ -12,6 +14,10 @@ namespace Slate
 	{
 		s_Application = this;
 
+		m_Window.SetEventCallback([this](Event& event)
+		{
+			EmitEvent(event);
+		});
 		m_Window.Create(info);
 		m_Renderer.Create(m_Window.GetHandle(), m_Window.GetWidth(), m_Window.GetHeight());
 
@@ -34,24 +40,24 @@ namespace Slate
 
 		while (m_Running)
 		{
+			Input::BeginFrame();
 			m_Window.ProcessEvents();
 
-			if (m_Window.ShouldClose())
+			if (m_Window.ShouldClose() || !m_Running)
 			{
 				Stop();
 				break;
 			}
 
-			if (m_Window.WasResized())
+			auto currentTime = high_resolution_clock::now();
+
+			if (m_Window.IsMinimized())
 			{
-				m_Renderer.Resize(
-					m_Window.GetWidth(),
-					m_Window.GetHeight()
-				);
-				m_Window.ClearResizedFlag();
+				lastTime = currentTime;
+				m_Window.WaitForEvents();
+				continue;
 			}
 
-			auto currentTime = high_resolution_clock::now();
 			float deltaTime = duration<float, seconds::period>(currentTime - lastTime).count();
 			lastTime = currentTime;
 
@@ -70,6 +76,19 @@ namespace Slate
 
 	void Application::EmitEvent(Event& event)
 	{
+		EventDispatcher dispatcher(event);
+		dispatcher.Dispatch<WindowCloseEvent>(
+			[this](WindowCloseEvent& closeEvent)
+			{
+				return OnWindowClose(closeEvent);
+			}
+		);
+		dispatcher.Dispatch<WindowResizeEvent>(
+			[this](WindowResizeEvent& resizeEvent)
+			{
+				return OnWindowResize(resizeEvent);
+			}
+		);
 
 		for (auto& layer : std::views::reverse(m_LayerStack))
 		{
@@ -78,6 +97,21 @@ namespace Slate
 				break;
 		}
 
+	}
+
+	bool Application::OnWindowClose(WindowCloseEvent&)
+	{
+		Stop();
+		return true;
+	}
+
+	bool Application::OnWindowResize(WindowResizeEvent& event)
+	{
+		if (event.GetWidth() > 0 && event.GetHeight() > 0)
+		{
+			m_Renderer.Resize(event.GetWidth(), event.GetHeight());
+		}
+		return false;
 	}
 
 	void Application::Stop()
