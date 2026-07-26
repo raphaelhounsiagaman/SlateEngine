@@ -25,7 +25,9 @@ namespace Slate
 			requires(std::is_base_of_v<ApplicationLayer, TLayer>)
 		void PushLayer()
 		{
-			m_LayerStack.push_back(std::make_unique<TLayer>());
+			std::unique_ptr<TLayer> layer = std::make_unique<TLayer>();
+			layer->OnAttach();
+			m_LayerStack.push_back(std::move(layer));
 		}
 
 		template<typename TLayer>
@@ -52,14 +54,24 @@ namespace Slate
 	private:
 
 		void Stop();
+		void QueueLayerTransition(
+			ApplicationLayer* source,
+			std::unique_ptr<ApplicationLayer> destination
+		);
+		void ProcessLayerOperations();
 		bool OnWindowClose(WindowCloseEvent& event);
 		bool OnWindowResize(WindowResizeEvent& event);
 
+		struct LayerTransition
+		{
+			ApplicationLayer* Source = nullptr;
+			std::unique_ptr<ApplicationLayer> Destination;
+		};
+
 		bool m_Running = false;
 
-		
-
 		std::vector<std::unique_ptr<ApplicationLayer>> m_LayerStack;
+		std::vector<LayerTransition> m_PendingLayerTransitions;
 
 		friend class ApplicationLayer;
 

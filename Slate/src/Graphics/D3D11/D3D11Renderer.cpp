@@ -6,12 +6,47 @@
 #include <cstring>
 #include <iterator>
 #include <limits>
+#include <objbase.h>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
+
+#if defined(_MSC_VER)
+    #pragma comment(lib, "d2d1.lib")
+    #pragma comment(lib, "d3d11.lib")
+    #pragma comment(lib, "d3dcompiler.lib")
+    #pragma comment(lib, "dwrite.lib")
+    #pragma comment(lib, "dxgi.lib")
+    #pragma comment(lib, "windowscodecs.lib")
+#endif
 
 namespace Slate
 {
+    namespace
+    {
+        D2D1_COLOR_F ToD2DColor(const Color& color)
+        {
+            const std::array<float, 4> channels = color.GetFloatArray();
+            return D2D1::ColorF(
+                channels[0],
+                channels[1],
+                channels[2],
+                channels[3]
+            );
+        }
+
+        D2D1_RECT_F ToD2DRectangle(const Rectangle2D& rectangle)
+        {
+            return D2D1::RectF(
+                rectangle.X,
+                rectangle.Y,
+                rectangle.X + rectangle.Width,
+                rectangle.Y + rectangle.Height
+            );
+        }
+    }
+
     void Renderer::Implementation::Create(
         HWND windowHandle,
         unsigned int width,
@@ -22,6 +57,7 @@ namespace Slate
         CreateRenderTarget();
         CreateDepthBuffer(width, height);
         Create3DPipeline();
+        Create2DResources();
         SetViewport(width, height);
     }
 
@@ -34,7 +70,7 @@ namespace Slate
         DXGI_SWAP_CHAIN_DESC swapChainDescription{};
         swapChainDescription.BufferDesc.Width = width;
         swapChainDescription.BufferDesc.Height = height;
-        swapChainDescription.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        swapChainDescription.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         swapChainDescription.BufferDesc.RefreshRate.Numerator = 0;
         swapChainDescription.BufferDesc.RefreshRate.Denominator = 1;
 
@@ -48,7 +84,7 @@ namespace Slate
         swapChainDescription.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapChainDescription.Flags = 0;
 
-        UINT deviceFlags = 0;
+        UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 
 #ifdef SLATE_DEBUG
         deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -247,6 +283,161 @@ namespace Slate
 
     }
 
+    void Renderer::Implementation::Create2DResources()
+    {
+        const HRESULT comResult = CoInitializeEx(
+            nullptr,
+            COINIT_APARTMENTTHREADED
+        );
+        if (SUCCEEDED(comResult))
+        {
+            m_DidInitializeCom = true;
+        }
+        else if (comResult != RPC_E_CHANGED_MODE)
+        {
+            ThrowIfFailed(comResult, "Failed to initialize COM for 2D rendering.");
+        }
+
+        ThrowIfFailed(
+            D2D1CreateFactory(
+                D2D1_FACTORY_TYPE_SINGLE_THREADED,
+                m_D2DFactory.GetAddressOf()
+            ),
+            "Failed to create the Direct2D factory."
+        );
+
+        ThrowIfFailed(
+            DWriteCreateFactory(
+                DWRITE_FACTORY_TYPE_SHARED,
+                __uuidof(IDWriteFactory),
+                reinterpret_cast<IUnknown**>(
+                    m_DWriteFactory.GetAddressOf()
+                )
+            ),
+            "Failed to create the DirectWrite factory."
+        );
+
+        ThrowIfFailed(
+            CoCreateInstance(
+                CLSID_WICImagingFactory,
+                nullptr,
+                CLSCTX_INPROC_SERVER,
+                IID_PPV_ARGS(m_WICFactory.GetAddressOf())
+            ),
+            "Failed to create the Windows Imaging Component factory."
+        );
+
+        Create2DRenderTarget();
+    }
+
+    void Renderer::Implementation::Create2DRenderTarget()
+    {
+        Microsoft::WRL::ComPtr<IDXGISurface> backBufferSurface;
+        ThrowIfFailed(
+            m_D3D11SwapChain->GetBuffer(
+                0,
+                IID_PPV_ARGS(backBufferSurface.GetAddressOf())
+            ),
+            "Failed to get the 2D back-buffer surface."
+        );
+
+        const D2D1_RENDER_TARGET_PROPERTIES properties =
+            D2D1::RenderTargetProperties(
+                D2D1_RENDER_TARGET_TYPE_DEFAULT,
+                D2D1::PixelFormat(
+                    DXGI_FORMAT_B8G8R8A8_UNORM,
+                    D2D1_ALPHA_MODE_PREMULTIPLIED
+                ),
+                96.0f,
+                96.0f
+            );
+
+        ThrowIfFailed(
+            m_D2DFactory->CreateDxgiSurfaceRenderTarget(
+                backBufferSurface.Get(),
+                &properties,
+                m_D2DRenderTarget.GetAddressOf()
+            ),
+            "Failed to create the Direct2D render target."
+        );
+
+        ThrowIfFailed(
+            m_D2DRenderTarget->CreateSolidColorBrush(
+                D2D1::ColorF(D2D1::ColorF::White),
+                m_D2DSolidBrush.GetAddressOf()
+            ),
+            "Failed to create the Direct2D color brush."
+        );
+
+        for (Texture2DResource& texture : m_Textures2D)
+        {
+            CreateTextureBitmap(texture);
+        }
+    }
+
+    void Renderer::Implementation::Destroy2DRenderTarget()
+    {
+        m_D2DSolidBrush.Reset();
+        for (Texture2DResource& texture : m_Textures2D)
+        {
+            texture.Bitmap.Reset();
+        }
+        m_D2DRenderTarget.Reset();
+    }
+
+    void Renderer::Implementation::CreateTextureBitmap(
+        Texture2DResource& texture)
+    {
+        if (!m_D2DRenderTarget || !m_WICFactory)
+        {
+            return;
+        }
+
+        Microsoft::WRL::ComPtr<IWICBitmapDecoder> decoder;
+        ThrowIfFailed(
+            m_WICFactory->CreateDecoderFromFilename(
+                texture.FilePath.c_str(),
+                nullptr,
+                GENERIC_READ,
+                WICDecodeMetadataCacheOnLoad,
+                decoder.GetAddressOf()
+            ),
+            "Failed to open the 2D texture file."
+        );
+
+        Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> frame;
+        ThrowIfFailed(
+            decoder->GetFrame(0, frame.GetAddressOf()),
+            "Failed to decode the first texture frame."
+        );
+
+        Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
+        ThrowIfFailed(
+            m_WICFactory->CreateFormatConverter(converter.GetAddressOf()),
+            "Failed to create the texture format converter."
+        );
+        ThrowIfFailed(
+            converter->Initialize(
+                frame.Get(),
+                GUID_WICPixelFormat32bppPBGRA,
+                WICBitmapDitherTypeNone,
+                nullptr,
+                0.0f,
+                WICBitmapPaletteTypeMedianCut
+            ),
+            "Failed to convert the texture to premultiplied BGRA."
+        );
+
+        ThrowIfFailed(
+            m_D2DRenderTarget->CreateBitmapFromWicBitmap(
+                converter.Get(),
+                nullptr,
+                texture.Bitmap.GetAddressOf()
+            ),
+            "Failed to upload the 2D texture."
+        );
+    }
+
     void Renderer::Implementation::SetViewport(unsigned int width, unsigned int height)
     {
         D3D11_VIEWPORT viewport{};
@@ -278,6 +469,8 @@ namespace Slate
             return;
         }
 
+        Destroy2DRenderTarget();
+
         // ResizeBuffers requires every reference to the old back buffer to be
         // released. ClearState also removes bindings outside the output merger.
         m_D3D11DeviceContext->ClearState();
@@ -300,12 +493,15 @@ namespace Slate
 
         CreateRenderTarget();
         CreateDepthBuffer(width, height);
+        Create2DRenderTarget();
 
         SetViewport(width, height);
     }
 
     void Renderer::Implementation::Destroy()
     {
+        Destroy2DRenderTarget();
+
         if (m_D3D11DeviceContext)
         {
             m_D3D11DeviceContext->ClearState();
@@ -314,6 +510,9 @@ namespace Slate
 
         m_Materials.clear();
         m_Meshes3D.clear();
+        m_Textures2D.clear();
+        m_TextFormats.clear();
+        m_Canvas2DCommands.clear();
 
         m_D3D11RasterizerState3D.Reset();
         m_D3D11ObjectConstantBuffer.Reset();
@@ -328,10 +527,22 @@ namespace Slate
         m_D3D11SwapChain.Reset();
         m_D3D11DeviceContext.Reset();
         m_D3D11Device.Reset();
+
+        m_WICFactory.Reset();
+        m_DWriteFactory.Reset();
+        m_D2DFactory.Reset();
+
+        if (m_DidInitializeCom)
+        {
+            CoUninitialize();
+            m_DidInitializeCom = false;
+        }
     }
 
     void Renderer::Implementation::BeginFrame(const Color& clearColor)
     {
+        m_Canvas2DCommands.clear();
+
         ID3D11RenderTargetView* renderTargets[]
         {
             m_D3D11RenderTargetView.Get()
@@ -348,6 +559,8 @@ namespace Slate
 
     void Renderer::Implementation::Present()
     {
+        Render2DCommands();
+
         ThrowIfFailed(
             m_D3D11SwapChain->Present(1, 0),
             "Failed to present the swap chain."
@@ -486,6 +699,38 @@ namespace Slate
         return handle;
     }
 
+    Texture2DHandle Renderer::Implementation::CreateTexture2D(
+        const std::filesystem::path& filePath)
+    {
+        if (filePath.empty() || !std::filesystem::is_regular_file(filePath))
+        {
+            throw std::invalid_argument("A 2D texture needs an existing file.");
+        }
+
+        if (m_Textures2D.size() >= std::numeric_limits<unsigned int>::max())
+        {
+            throw std::runtime_error("The renderer has run out of 2D texture handles.");
+        }
+
+        Texture2DResource texture;
+        texture.FilePath = std::filesystem::absolute(filePath);
+        texture.Generation = m_NextTextureGeneration++;
+        if (texture.Generation == 0)
+        {
+            texture.Generation = m_NextTextureGeneration++;
+        }
+
+        CreateTextureBitmap(texture);
+
+        const Texture2DHandle handle
+        {
+            static_cast<unsigned int>(m_Textures2D.size()),
+            texture.Generation
+        };
+        m_Textures2D.push_back(std::move(texture));
+        return handle;
+    }
+
     void Renderer::Implementation::DrawMesh3D(
         const Mesh3DHandle& meshHandle,
         const MaterialHandle& materialHandle,
@@ -505,6 +750,70 @@ namespace Slate
         Bind3DPipeline3D();
 
         m_D3D11DeviceContext->DrawIndexed(mesh.IndexCount, 0, 0);
+    }
+
+    void Renderer::Implementation::DrawRectangle2D(
+        const Rectangle2D& rectangle,
+        const Color& color,
+        float cornerRadiusPixels)
+    {
+        if (rectangle.Width <= 0.0f || rectangle.Height <= 0.0f)
+        {
+            return;
+        }
+
+        m_Canvas2DCommands.emplace_back(
+            Rectangle2DCommand
+            {
+                rectangle,
+                color,
+                std::max(cornerRadiusPixels, 0.0f)
+            }
+        );
+    }
+
+    void Renderer::Implementation::DrawText2D(
+        std::wstring_view text,
+        const Rectangle2D& bounds,
+        const TextStyle& style)
+    {
+        if (text.empty() ||
+            bounds.Width <= 0.0f ||
+            bounds.Height <= 0.0f ||
+            style.FontSizePixels <= 0.0f)
+        {
+            return;
+        }
+
+        m_Canvas2DCommands.emplace_back(
+            Text2DCommand
+            {
+                std::wstring(text),
+                bounds,
+                style
+            }
+        );
+    }
+
+    void Renderer::Implementation::DrawTexture2D(
+        const Texture2DHandle& texture,
+        const Rectangle2D& bounds,
+        float opacity)
+    {
+        GetTexture2D(texture);
+        if (bounds.Width <= 0.0f || bounds.Height <= 0.0f)
+        {
+            return;
+        }
+
+        m_Canvas2DCommands.emplace_back(
+            Texture2DCommand
+            {
+                texture,
+                bounds,
+                std::clamp(opacity, 0.0f, 1.0f)
+            }
+        );
     }
 
     void Renderer::Implementation::UpdateObjectConstants(
@@ -597,6 +906,149 @@ namespace Slate
         m_D3D11DeviceContext->RSSetState(m_D3D11RasterizerState3D.Get());
     }
 
+    void Renderer::Implementation::Render2DCommands()
+    {
+        if (!m_D2DRenderTarget || m_Canvas2DCommands.empty())
+        {
+            return;
+        }
+
+        m_D2DRenderTarget->BeginDraw();
+        m_D2DRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+
+        for (const Canvas2DCommand& command : m_Canvas2DCommands)
+        {
+            std::visit(
+                [this](const auto& typedCommand)
+                {
+                    using TCommand = std::decay_t<decltype(typedCommand)>;
+
+                    if constexpr (std::is_same_v<TCommand, Rectangle2DCommand>)
+                    {
+                        m_D2DSolidBrush->SetColor(
+                            ToD2DColor(typedCommand.FillColor)
+                        );
+                        const D2D1_ROUNDED_RECT roundedRectangle
+                        {
+                            ToD2DRectangle(typedCommand.Rectangle),
+                            typedCommand.CornerRadiusPixels,
+                            typedCommand.CornerRadiusPixels
+                        };
+                        m_D2DRenderTarget->FillRoundedRectangle(
+                            &roundedRectangle,
+                            m_D2DSolidBrush.Get()
+                        );
+                    }
+                    else if constexpr (std::is_same_v<TCommand, Text2DCommand>)
+                    {
+                        m_D2DSolidBrush->SetColor(
+                            ToD2DColor(typedCommand.Style.TextColor)
+                        );
+                        const D2D1_RECT_F textBounds =
+                            ToD2DRectangle(typedCommand.Bounds);
+                        m_D2DRenderTarget->DrawTextW(
+                            typedCommand.Text.c_str(),
+                            static_cast<UINT32>(typedCommand.Text.size()),
+                            GetTextFormat(typedCommand.Style),
+                            &textBounds,
+                            m_D2DSolidBrush.Get(),
+                            D2D1_DRAW_TEXT_OPTIONS_CLIP
+                        );
+                    }
+                    else if constexpr (std::is_same_v<TCommand, Texture2DCommand>)
+                    {
+                        const Texture2DResource& texture =
+                            GetTexture2D(typedCommand.Texture);
+                        const D2D1_RECT_F textureBounds =
+                            ToD2DRectangle(typedCommand.Bounds);
+                        m_D2DRenderTarget->DrawBitmap(
+                            texture.Bitmap.Get(),
+                            &textureBounds,
+                            typedCommand.Opacity,
+                            D2D1_BITMAP_INTERPOLATION_MODE_LINEAR
+                        );
+                    }
+                },
+                command
+            );
+        }
+
+        const HRESULT result = m_D2DRenderTarget->EndDraw();
+        if (result == D2DERR_RECREATE_TARGET)
+        {
+            Destroy2DRenderTarget();
+            Create2DRenderTarget();
+            return;
+        }
+        ThrowIfFailed(result, "Failed to render the 2D canvas.");
+    }
+
+    IDWriteTextFormat* Renderer::Implementation::GetTextFormat(
+        const TextStyle& style)
+    {
+        for (TextFormatResource& resource : m_TextFormats)
+        {
+            if (resource.FontFamily == style.FontFamily &&
+                resource.FontSizePixels == style.FontSizePixels &&
+                resource.IsBold == style.IsBold &&
+                resource.HorizontalAlignment == style.HorizontalAlignment &&
+                resource.VerticalAlignment == style.VerticalAlignment)
+            {
+                return resource.Format.Get();
+            }
+        }
+
+        TextFormatResource resource;
+        resource.FontFamily = style.FontFamily;
+        resource.FontSizePixels = style.FontSizePixels;
+        resource.IsBold = style.IsBold;
+        resource.HorizontalAlignment = style.HorizontalAlignment;
+        resource.VerticalAlignment = style.VerticalAlignment;
+
+        ThrowIfFailed(
+            m_DWriteFactory->CreateTextFormat(
+                resource.FontFamily.c_str(),
+                nullptr,
+                resource.IsBold
+                    ? DWRITE_FONT_WEIGHT_BOLD
+                    : DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                resource.FontSizePixels,
+                L"",
+                resource.Format.GetAddressOf()
+            ),
+            "Failed to create the DirectWrite text format."
+        );
+
+        DWRITE_TEXT_ALIGNMENT horizontalAlignment =
+            DWRITE_TEXT_ALIGNMENT_LEADING;
+        if (style.HorizontalAlignment == HorizontalTextAlignment::Center)
+        {
+            horizontalAlignment = DWRITE_TEXT_ALIGNMENT_CENTER;
+        }
+        else if (style.HorizontalAlignment == HorizontalTextAlignment::Right)
+        {
+            horizontalAlignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
+        }
+        resource.Format->SetTextAlignment(horizontalAlignment);
+
+        DWRITE_PARAGRAPH_ALIGNMENT verticalAlignment =
+            DWRITE_PARAGRAPH_ALIGNMENT_NEAR;
+        if (style.VerticalAlignment == VerticalTextAlignment::Center)
+        {
+            verticalAlignment = DWRITE_PARAGRAPH_ALIGNMENT_CENTER;
+        }
+        else if (style.VerticalAlignment == VerticalTextAlignment::Bottom)
+        {
+            verticalAlignment = DWRITE_PARAGRAPH_ALIGNMENT_FAR;
+        }
+        resource.Format->SetParagraphAlignment(verticalAlignment);
+
+        m_TextFormats.push_back(std::move(resource));
+        return m_TextFormats.back().Format.Get();
+    }
+
     const Renderer::Implementation::Mesh3DResource&
         Renderer::Implementation::GetMesh3D(const Mesh3DHandle& handle) const
     {
@@ -621,6 +1073,20 @@ namespace Slate
         }
 
         return m_Materials[handle.Index];
+    }
+
+    const Renderer::Implementation::Texture2DResource&
+        Renderer::Implementation::GetTexture2D(
+            const Texture2DHandle& handle) const
+    {
+        if (!handle ||
+            handle.Index >= m_Textures2D.size() ||
+            m_Textures2D[handle.Index].Generation != handle.Generation)
+        {
+            throw std::invalid_argument("The 2D texture handle is invalid.");
+        }
+
+        return m_Textures2D[handle.Index];
     }
 
     Microsoft::WRL::ComPtr<ID3DBlob> Renderer::Implementation::CompileShader(

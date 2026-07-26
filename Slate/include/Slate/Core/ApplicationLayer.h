@@ -11,6 +11,8 @@ namespace Slate
 	public:
 		virtual ~ApplicationLayer() = default;
 
+		virtual void OnAttach() {}
+		virtual void OnDetach() {}
 		virtual void OnEvent(Event& event) {}
 
 		// deltaTimeSeconds is measured in seconds.
@@ -20,8 +22,11 @@ namespace Slate
 		template<std::derived_from<ApplicationLayer> T, typename... Args>
 		void TransitionTo(Args&&... args)
 		{
-			QueueTransition(std::move(std::make_unique<T>(std::forward<Args>(args)...)));
+			QueueTransition(
+				std::make_unique<T>(std::forward<Args>(args)...)
+			);
 		}
+
 	private:
 		void QueueTransition(std::unique_ptr<ApplicationLayer> layer);
 	};

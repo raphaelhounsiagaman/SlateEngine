@@ -2,11 +2,17 @@
 
 #include "Slate/Graphics/Renderer.h"
 
+#include <d2d1.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <dwrite.h>
 #include <dxgi.h>
+#include <wincodec.h>
 #include <wrl/client.h>
 
+#include <filesystem>
+#include <string>
+#include <variant>
 #include <vector>
 
 namespace Slate
@@ -29,11 +35,29 @@ namespace Slate
 			std::span<const unsigned int> indices
 		);
 		MaterialHandle CreateMaterial(const Color& color);
+		Texture2DHandle CreateTexture2D(
+			const std::filesystem::path& filePath
+		);
 
 		void DrawMesh3D(
 			const Mesh3DHandle& meshHandle,
 			const MaterialHandle& materialHandle,
 			const Transform3D& transform
+		);
+		void DrawRectangle2D(
+			const Rectangle2D& rectangle,
+			const Color& color,
+			float cornerRadiusPixels
+		);
+		void DrawText2D(
+			std::wstring_view text,
+			const Rectangle2D& bounds,
+			const TextStyle& style
+		);
+		void DrawTexture2D(
+			const Texture2DHandle& texture,
+			const Rectangle2D& bounds,
+			float opacity
 		);
 
 	private:
@@ -50,6 +74,52 @@ namespace Slate
 		{
 			Color Albedo;
 			unsigned int Generation = 0;
+		};
+
+		struct Texture2DResource
+		{
+			std::filesystem::path FilePath;
+			Microsoft::WRL::ComPtr<ID2D1Bitmap> Bitmap;
+			unsigned int Generation = 0;
+		};
+
+		struct Rectangle2DCommand
+		{
+			Rectangle2D Rectangle;
+			Color FillColor;
+			float CornerRadiusPixels = 0.0f;
+		};
+
+		struct Text2DCommand
+		{
+			std::wstring Text;
+			Rectangle2D Bounds;
+			TextStyle Style;
+		};
+
+		struct Texture2DCommand
+		{
+			Texture2DHandle Texture;
+			Rectangle2D Bounds;
+			float Opacity = 1.0f;
+		};
+
+		using Canvas2DCommand = std::variant<
+			Rectangle2DCommand,
+			Text2DCommand,
+			Texture2DCommand
+		>;
+
+		struct TextFormatResource
+		{
+			std::wstring FontFamily;
+			float FontSizePixels = 0.0f;
+			bool IsBold = false;
+			HorizontalTextAlignment HorizontalAlignment =
+				HorizontalTextAlignment::Left;
+			VerticalTextAlignment VerticalAlignment =
+				VerticalTextAlignment::Top;
+			Microsoft::WRL::ComPtr<IDWriteTextFormat> Format;
 		};
 
 		struct ObjectConstants
@@ -70,6 +140,10 @@ namespace Slate
 		void CreateRenderTarget();
 		void CreateDepthBuffer(unsigned int width, unsigned int height);
 		void Create3DPipeline();
+		void Create2DResources();
+		void Create2DRenderTarget();
+		void Destroy2DRenderTarget();
+		void CreateTextureBitmap(Texture2DResource& texture);
 		void SetViewport(unsigned int width, unsigned int height);
 
 		void ClearRenderTarget(const Color& color);
@@ -80,9 +154,14 @@ namespace Slate
 		);
 		void BindMesh3D(const Mesh3DResource& mesh);
 		void Bind3DPipeline3D();
+		void Render2DCommands();
+		IDWriteTextFormat* GetTextFormat(const TextStyle& style);
 
 		const Mesh3DResource& GetMesh3D(const Mesh3DHandle& handle) const;
 		const MaterialResource& GetMaterial(const MaterialHandle& handle) const;
+		const Texture2DResource& GetTexture2D(
+			const Texture2DHandle& handle
+		) const;
 
 		Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(
 			const char* source,
@@ -108,8 +187,17 @@ namespace Slate
 		Microsoft::WRL::ComPtr<ID3D11Buffer> m_D3D11ObjectConstantBuffer;
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_D3D11RasterizerState3D;
 
+		Microsoft::WRL::ComPtr<ID2D1Factory> m_D2DFactory;
+		Microsoft::WRL::ComPtr<ID2D1RenderTarget> m_D2DRenderTarget;
+		Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> m_D2DSolidBrush;
+		Microsoft::WRL::ComPtr<IDWriteFactory> m_DWriteFactory;
+		Microsoft::WRL::ComPtr<IWICImagingFactory> m_WICFactory;
+
 		std::vector<Mesh3DResource> m_Meshes3D;
 		std::vector<MaterialResource> m_Materials;
+		std::vector<Texture2DResource> m_Textures2D;
+		std::vector<TextFormatResource> m_TextFormats;
+		std::vector<Canvas2DCommand> m_Canvas2DCommands;
 
 		Camera3D m_Camera3D{};
 
@@ -118,6 +206,8 @@ namespace Slate
 
 		unsigned int m_NextMeshGeneration = 1;
 		unsigned int m_NextMaterialGeneration = 1;
+		unsigned int m_NextTextureGeneration = 1;
+		bool m_DidInitializeCom = false;
 	};
 
 }

@@ -60,6 +60,12 @@ namespace Slate
 		return m_Implementation->CreateMaterial(color);
 	}
 
+	Texture2DHandle Renderer::CreateTexture2D(
+		const std::filesystem::path& filePath)
+	{
+		return m_Implementation->CreateTexture2D(filePath);
+	}
+
 	void Renderer::DrawMesh2D(
 		const Mesh2DHandle& meshHandle,
 		const MaterialHandle& materialHandle,
@@ -76,6 +82,34 @@ namespace Slate
 	)
 	{
 		m_Implementation->DrawMesh3D(meshHandle, materialHandle, transform);
+	}
+
+	void Renderer::DrawRectangle2D(
+		const Rectangle2D& rectangle,
+		const Color& color,
+		float cornerRadiusPixels)
+	{
+		m_Implementation->DrawRectangle2D(
+			rectangle,
+			color,
+			cornerRadiusPixels
+		);
+	}
+
+	void Renderer::DrawText2D(
+		std::wstring_view text,
+		const Rectangle2D& bounds,
+		const TextStyle& style)
+	{
+		m_Implementation->DrawText2D(text, bounds, style);
+	}
+
+	void Renderer::DrawTexture2D(
+		const Texture2DHandle& texture,
+		const Rectangle2D& bounds,
+		float opacity)
+	{
+		m_Implementation->DrawTexture2D(texture, bounds, opacity);
 	}
 
 }

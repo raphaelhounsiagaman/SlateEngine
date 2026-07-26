@@ -3,13 +3,16 @@
 #include "Slate/Math/Math.h"
 
 #include "Camera3D.h"
+#include "Canvas2D.h"
 #include "Color.h"
 #include "Handles.h"
 #include "Vertex.h"
 
 #include <Windows.h>
+#include <filesystem>
 #include <memory>
 #include <span> 
+#include <string_view>
 
 namespace Slate
 {
@@ -45,12 +48,29 @@ namespace Slate
 		);
 
 		MaterialHandle CreateMaterial(const Color& color);
+		Texture2DHandle CreateTexture2D(
+			const std::filesystem::path& filePath
+		);
 
 	public:
 
 		void DrawMesh2D(const Mesh2DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform2D& transform);
 		void DrawMesh3D(const Mesh3DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform3D& transform);
-		
+		void DrawRectangle2D(
+			const Rectangle2D& rectangle,
+			const Color& color,
+			float cornerRadiusPixels = 0.0f
+		);
+		void DrawText2D(
+			std::wstring_view text,
+			const Rectangle2D& bounds,
+			const TextStyle& style = {}
+		);
+		void DrawTexture2D(
+			const Texture2DHandle& texture,
+			const Rectangle2D& bounds,
+			float opacity = 1.0f
+		);
 
 
 	private:

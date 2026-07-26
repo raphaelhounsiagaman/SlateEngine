@@ -4,7 +4,7 @@ project "SlateEngine"
   cppdialect "C++23"
 
   targetdir ("../bin/%{cfg.buildcfg}")
-  objdir ("../bin/Intermediates/%{cfg.builcfg}")
+  objdir ("../bin/Intermediates/%{cfg.buildcfg}")
 
   files
   {
@@ -30,13 +30,6 @@ project "SlateEngine"
   libdirs
   {
     
-  }
-
-  links
-  {
-    "d3d11",
-    "d3dcompiler",
-    "dxgi",
   }
 
   filter "system:windows"

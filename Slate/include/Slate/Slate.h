@@ -10,6 +10,7 @@
 #include "Core/ApplicationLayer.h" 
 
 #include "Graphics/Camera3D.h"
+#include "Graphics/Canvas2D.h"
 #include "Graphics/Color.h"
 #include "Graphics/Handles.h"
 #include "Graphics/Renderer.h"
@@ -26,3 +27,9 @@
 #include "Input/WindowEvent.h"
 
 #include "Math/Math.h"
+
+#include "UI/Button.h"
+#include "UI/Image.h"
+#include "UI/Label.h"
+#include "UI/UICanvas.h"
+#include "UI/UIElement.h"

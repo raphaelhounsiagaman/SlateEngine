@@ -26,6 +26,13 @@ namespace Slate
 
 	Application::~Application()
 	{
+		for (const std::unique_ptr<ApplicationLayer>& layer : m_LayerStack)
+		{
+			layer->OnDetach();
+		}
+		m_PendingLayerTransitions.clear();
+		m_LayerStack.clear();
+
 		m_Renderer.Destroy();
 		m_Window.Destroy();
 
@@ -70,6 +77,7 @@ namespace Slate
 				layer->OnRender();
 
 			m_Renderer.Present();
+			ProcessLayerOperations();
 
 		}
 	}
@@ -117,6 +125,55 @@ namespace Slate
 	void Application::Stop()
 	{
 		m_Running = false;
+	}
+
+	void Application::QueueLayerTransition(
+		ApplicationLayer* source,
+		std::unique_ptr<ApplicationLayer> destination)
+	{
+		if (source == nullptr || destination == nullptr)
+		{
+			return;
+		}
+
+		for (LayerTransition& transition : m_PendingLayerTransitions)
+		{
+			if (transition.Source == source)
+			{
+				transition.Destination = std::move(destination);
+				return;
+			}
+		}
+
+		m_PendingLayerTransitions.push_back(
+			{ source, std::move(destination) }
+		);
+	}
+
+	void Application::ProcessLayerOperations()
+	{
+		// Lifecycle callbacks are allowed to queue work for the next frame.
+		// Moving the current batch prevents those additions from invalidating
+		// this iteration.
+		std::vector<LayerTransition> transitions =
+			std::move(m_PendingLayerTransitions);
+		m_PendingLayerTransitions.clear();
+
+		for (LayerTransition& transition : transitions)
+		{
+			for (std::unique_ptr<ApplicationLayer>& layer : m_LayerStack)
+			{
+				if (layer.get() != transition.Source)
+				{
+					continue;
+				}
+
+				layer->OnDetach();
+				transition.Destination->OnAttach();
+				layer = std::move(transition.Destination);
+				break;
+			}
+		}
 	}
 
 	Application& Application::Get()
