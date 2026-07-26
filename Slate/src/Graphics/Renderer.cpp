@@ -18,11 +18,14 @@ namespace Slate
 		void SetViewport(unsigned int width, unsigned int height);
 		void ResizeRenderer(unsigned int width, unsigned int height);
 
+
+
         void BeginFrame();
         void Present();
 
-
 		void ClearRenderTarget(const Color& color);
+        void SetCamera3D(const Camera3D& camera);
+
 
     private:
         void ThrowIfFailed(HRESULT result, const char* message);
@@ -33,6 +36,8 @@ namespace Slate
         Microsoft::WRL::ComPtr<IDXGISwapChain> m_D3D11SwapChain;
 
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_D3D11RenderTargetView;
+
+        Camera3D m_Camera3D{};
 
     };
 
@@ -75,12 +80,17 @@ namespace Slate
         m_Implementation->ResizeRenderer(width, height);
     }
 
+    void Renderer::SetCamera3D(const Camera3D& camera)
+    {
+        m_Implementation->SetCamera3D(camera);
+    }
+
     Mesh2DHandle Renderer::CreateMesh2D()
     {
         return Mesh2DHandle();
     }
 
-    Mesh3DHandle Renderer::CreateMesh3D()
+    Mesh3DHandle Renderer::CreateMesh3D(std::span<const Vertex3D> vertices, std::span<const unsigned int> indices)
     {
         return Mesh3DHandle();
     }
@@ -288,6 +298,11 @@ namespace Slate
             m_D3D11RenderTargetView.Get(),
             color.GetFloatArray().data()
         );
+    }
+
+    void Renderer::Implementation::SetCamera3D(const Camera3D& camera)
+    {
+            m_Camera3D = camera;
     }
 
     void Renderer::Implementation::ThrowIfFailed(HRESULT result, const char* message)

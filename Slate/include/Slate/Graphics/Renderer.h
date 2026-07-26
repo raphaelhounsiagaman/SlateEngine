@@ -2,11 +2,14 @@
 
 #include "Slate/Math/Math.h"
 
+#include "Camera3D.h"
 #include "Color.h"
 #include "Handles.h"
+#include "Vertex.h"
 
 #include <Windows.h>
 #include <memory>
+#include <span> 
 
 namespace Slate
 {
@@ -31,11 +34,15 @@ namespace Slate
 		void Resize(unsigned int width,	unsigned int height);
 
 		void SetClearColor(const Color& color) { m_ClearColor = color; }
+		void SetCamera3D(const Camera3D& camera);
 
 	public:
 
 		Mesh2DHandle CreateMesh2D();
-		Mesh3DHandle CreateMesh3D();
+		Mesh3DHandle CreateMesh3D(
+			std::span<const Vertex3D> vertices,
+			std::span<const unsigned int> indices
+		);
 
 	public:
 
