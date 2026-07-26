@@ -6,6 +6,7 @@
 #include <wrl/client.h>
 
 #include <stdexcept>
+#include <vector>
 
 namespace Slate
 {
@@ -45,6 +46,20 @@ namespace Slate
 
     private:
 
+        struct Mesh3DResource
+        {
+            Microsoft::WRL::ComPtr<ID3D11Buffer> VertexBuffer;
+            Microsoft::WRL::ComPtr<ID3D11Buffer> IndexBuffer;
+            unsigned int IndexCount = 0;
+            unsigned int Generation = 0;
+        };
+
+        struct MaterialResource
+        {
+            Color Albedo;
+            unsigned int Generation = 0;
+        };
+
         struct ObjectConstants
         {
             Matrix4x4 World;
@@ -52,6 +67,11 @@ namespace Slate
             Matrix4x4 Projection;
             float Albedo[4];
         };
+
+        static_assert(sizeof(ObjectConstants) % 16 == 0);
+
+        const Mesh3DResource& GetMesh3D(const Mesh3DHandle& handle) const;
+        const MaterialResource& GetMaterial(const MaterialHandle& handle) const;
 
         Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(
             const char* source,
@@ -62,6 +82,7 @@ namespace Slate
         void ThrowIfFailed(HRESULT result, const char* message);
 
     private:
+
         Microsoft::WRL::ComPtr<ID3D11Device> m_D3D11Device;
         Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_D3D11DeviceContext;
         Microsoft::WRL::ComPtr<IDXGISwapChain> m_D3D11SwapChain;
@@ -76,8 +97,16 @@ namespace Slate
         Microsoft::WRL::ComPtr<ID3D11Buffer> m_D3D11ObjectConstantBuffer;
         Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_D3D11RasterizerState3D;
 
+        std::vector<Mesh3DResource> m_Meshes3D;
+        std::vector<MaterialResource> m_Materials;
+
         Camera3D m_Camera3D{};
 
+        unsigned int m_ViewportWidth = 0;
+        unsigned int m_ViewportHeight = 0;
+
+        unsigned int m_NextMeshGeneration = 1;
+        unsigned int m_NextMaterialGeneration = 1;
     };
 
 
@@ -94,6 +123,7 @@ namespace Slate
         m_Implementation->CreateRenderTarget();
 		m_Implementation->CreateDepthBuffer(width, height);
         m_Implementation->Create3DPipeline();
+
         m_Implementation->SetViewport(width, height);
     }
 
@@ -104,10 +134,8 @@ namespace Slate
 
     void Renderer::BeginFrame()
     {
-
         m_Implementation->BeginFrame();
         m_Implementation->ClearRenderTarget(m_ClearColor);
-
     }
 
     void Renderer::Present()
@@ -130,26 +158,43 @@ namespace Slate
         return Mesh2DHandle();
     }
 
-    Mesh3DHandle Renderer::CreateMesh3D(std::span<const Vertex3D> vertices, std::span<const unsigned int> indices)
+    Mesh3DHandle Renderer::CreateMesh3D(
+        std::span<const Vertex3D> vertices, 
+        std::span<const unsigned int> indices
+    )
     {
-        return Mesh3DHandle();
+        return m_Implementation->CreateMesh3D(vertices, indices);
     }
 
-    void Renderer::DrawMesh2D(const Mesh2DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform2D& transform)
+    MaterialHandle Renderer::CreateMaterial(const Color& color)
+    {
+        return m_Implementation->CreateMaterial(color);
+    }
+
+    void Renderer::DrawMesh2D(
+        const Mesh2DHandle& meshHandle, 
+        const MaterialHandle& materialHandle, 
+        const Transform2D& transform
+    )
     {
 
     }
 
-    void Renderer::DrawMesh3D(const Mesh3DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform3D& transform)
-    {}
-
+    void Renderer::DrawMesh3D(
+        const Mesh3DHandle& meshHandle, 
+        const MaterialHandle& materialHandle, 
+        const Transform3D& transform
+    )
+    {
+        m_Implementation->DrawMesh3D(meshHandle, materialHandle, transform);
+    }
 
 
 
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////
     //
-	// RENDERER IMPLEMENTATION
+    // RENDERER IMPLEMENTATION
     //
     ///////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////
@@ -436,14 +481,17 @@ namespace Slate
             1,
             &viewport
         );
+
+        m_ViewportWidth = width;
+        m_ViewportHeight = height;
     }
 
     void Renderer::Implementation::ResizeRenderer(unsigned int width, unsigned int height)
     {
-		if (!m_D3D11SwapChain)
-		{
-			return;
-		}
+        if (!m_D3D11SwapChain)
+        {
+            return;
+        }
 
         if (width == 0 || height == 0)
         {
@@ -457,6 +505,8 @@ namespace Slate
         );
 
         m_D3D11RenderTargetView.Reset();
+        m_D3D11DepthStencilView.Reset();
+        m_D3D11DepthBuffer.Reset();
 
         ThrowIfFailed(
             m_D3D11SwapChain->ResizeBuffers(
@@ -470,8 +520,10 @@ namespace Slate
         );
 
         CreateRenderTarget();
+        CreateDepthBuffer(width, height);
 
         SetViewport(width, height);
+
     }
 
     void Renderer::Implementation::Destroy()
@@ -481,6 +533,15 @@ namespace Slate
             m_D3D11DeviceContext->ClearState();
             m_D3D11DeviceContext->Flush();
         }
+
+        m_Materials.clear();
+        m_Meshes3D.clear();
+
+        m_D3D11RasterizerState3D.Reset();
+        m_D3D11ObjectConstantBuffer.Reset();
+        m_D3D11InputLayout3D.Reset();
+        m_D3D11PixelShader3D.Reset();
+        m_D3D11VertexShader3D.Reset();
 
         m_D3D11DepthStencilView.Reset();
         m_D3D11DepthBuffer.Reset();
@@ -501,7 +562,7 @@ namespace Slate
         m_D3D11DeviceContext->OMSetRenderTargets(
             1,
             renderTargets,
-            nullptr
+            m_D3D11DepthStencilView.Get()
         );
     }
 
@@ -511,16 +572,21 @@ namespace Slate
             m_D3D11SwapChain->Present(1, 0),
             "Failed to present the swap chain."
         );
-    
     }
 
-    
 
     void Renderer::Implementation::ClearRenderTarget(const Color& color)
     {
         m_D3D11DeviceContext->ClearRenderTargetView(
             m_D3D11RenderTargetView.Get(),
             color.GetFloatArray().data()
+        );
+
+        m_D3D11DeviceContext->ClearDepthStencilView(
+            m_D3D11DepthStencilView.Get(),
+            D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+            1.0f,
+            0
         );
     }
 
@@ -529,18 +595,239 @@ namespace Slate
             m_Camera3D = camera;
     }
 
-    Mesh3DHandle Renderer::Implementation::CreateMesh3D(std::span<const Vertex3D> vertices, std::span<const unsigned int> indices)
+    Mesh3DHandle Renderer::Implementation::CreateMesh3D(
+        std::span<const Vertex3D> vertices, 
+        std::span<const unsigned int> indices
+    )
     {
-        return Mesh3DHandle();
+        if (vertices.empty() || indices.empty())
+        {
+            throw std::invalid_argument("A 3D mesh needs vertices and indices.");
+        }
+
+        if (vertices.size_bytes() > std::numeric_limits<UINT>::max() ||
+            indices.size_bytes() > std::numeric_limits<UINT>::max())
+        {
+            throw std::invalid_argument("The 3D mesh is too large for a Direct3D 11 buffer.");
+        }
+
+        for (const unsigned int index : indices)
+        {
+            if (index >= vertices.size())
+            {
+                throw std::invalid_argument("A 3D mesh index refers to a missing vertex.");
+            }
+        }
+
+        D3D11_BUFFER_DESC vertexBufferDescription{};
+        vertexBufferDescription.ByteWidth = static_cast<UINT>(vertices.size_bytes());
+        vertexBufferDescription.Usage = D3D11_USAGE_IMMUTABLE;
+        vertexBufferDescription.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+        D3D11_SUBRESOURCE_DATA vertexData{};
+        vertexData.pSysMem = vertices.data();
+
+        Mesh3DResource mesh{};
+
+        ThrowIfFailed(
+            m_D3D11Device->CreateBuffer(
+                &vertexBufferDescription,
+                &vertexData,
+                mesh.VertexBuffer.GetAddressOf()
+            ),
+            "Failed to create a 3D vertex buffer."
+        );
+
+        D3D11_BUFFER_DESC indexBufferDescription{};
+        indexBufferDescription.ByteWidth = static_cast<UINT>(indices.size_bytes());
+        indexBufferDescription.Usage = D3D11_USAGE_IMMUTABLE;
+        indexBufferDescription.BindFlags = D3D11_BIND_INDEX_BUFFER;
+
+        D3D11_SUBRESOURCE_DATA indexData{};
+        indexData.pSysMem = indices.data();
+
+        ThrowIfFailed(
+            m_D3D11Device->CreateBuffer(
+                &indexBufferDescription,
+                &indexData,
+                mesh.IndexBuffer.GetAddressOf()
+            ),
+            "Failed to create a 3D index buffer."
+        );
+
+        if (m_Meshes3D.size() >= std::numeric_limits<unsigned int>::max())
+        {
+            throw std::runtime_error("The renderer has run out of 3D mesh handles.");
+        }
+
+        mesh.IndexCount = static_cast<unsigned int>(indices.size());
+        mesh.Generation = m_NextMeshGeneration++;
+
+        if (mesh.Generation == 0)
+        {
+            mesh.Generation = m_NextMeshGeneration++;
+        }
+
+        const Mesh3DHandle handle
+        {
+            static_cast<unsigned int>(m_Meshes3D.size()),
+            mesh.Generation
+        };
+
+        m_Meshes3D.push_back(std::move(mesh));
+
+        return handle;
     }
 
     MaterialHandle Renderer::Implementation::CreateMaterial(const Color& color)
     {
-        return MaterialHandle();
+        if (m_Materials.size() >= std::numeric_limits<unsigned int>::max())
+        {
+            throw std::runtime_error("The renderer has run out of material handles.");
+        }
+
+        MaterialResource material{};
+        material.Albedo = color;
+        material.Generation = m_NextMaterialGeneration++;
+
+        if (material.Generation == 0)
+        {
+            material.Generation = m_NextMaterialGeneration++;
+        }
+
+        const MaterialHandle handle
+        {
+            static_cast<unsigned int>(m_Materials.size()),
+            material.Generation
+        };
+
+        m_Materials.push_back(material);
+
+        return handle;
     }
 
-    void Renderer::Implementation::DrawMesh3D(const Mesh3DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform3D& transform)
-    {}
+    void Renderer::Implementation::DrawMesh3D(
+        const Mesh3DHandle& meshHandle, 
+        const MaterialHandle& materialHandle, 
+        const Transform3D& transform
+    )
+    {
+        const Mesh3DResource& mesh = GetMesh3D(meshHandle);
+        const MaterialResource& material = GetMaterial(materialHandle);
+
+        if (m_ViewportWidth == 0 || m_ViewportHeight == 0)
+        {
+            return;
+        }
+
+        const float aspectRatio =
+            static_cast<float>(m_ViewportWidth) /
+            static_cast<float>(m_ViewportHeight);
+
+        const std::array<float, 4> albedo = material.Albedo.GetFloatArray();
+
+        const ObjectConstants constants
+        {
+            Matrix4x4::World(transform),
+            Matrix4x4::View(m_Camera3D.Transform),
+            Matrix4x4::Perspective(
+                m_Camera3D.FOV,
+                aspectRatio,
+                m_Camera3D.NearPlane,
+                m_Camera3D.FarPlane
+            ),
+            {
+                albedo[0],
+                albedo[1],
+                albedo[2],
+                albedo[3]
+            }
+        };
+
+        m_D3D11DeviceContext->UpdateSubresource(
+            m_D3D11ObjectConstantBuffer.Get(),
+            0,
+            nullptr,
+            &constants,
+            0,
+            0
+        );
+
+        ID3D11Buffer* vertexBuffers[]
+        {
+            mesh.VertexBuffer.Get()
+        };
+
+        constexpr UINT strides[]
+        {
+            sizeof(Vertex3D)
+        };
+
+        constexpr UINT offsets[]
+        {
+            0
+        };
+
+        m_D3D11DeviceContext->IASetVertexBuffers(
+            0,
+            1,
+            vertexBuffers,
+            strides,
+            offsets
+        );
+
+        m_D3D11DeviceContext->IASetIndexBuffer(
+            mesh.IndexBuffer.Get(),
+            DXGI_FORMAT_R32_UINT,
+            0
+        );
+
+        m_D3D11DeviceContext->IASetInputLayout(m_D3D11InputLayout3D.Get());
+        m_D3D11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        ID3D11Buffer* constantBuffers[]
+        {
+            m_D3D11ObjectConstantBuffer.Get()
+        };
+
+        m_D3D11DeviceContext->VSSetShader(m_D3D11VertexShader3D.Get(), nullptr, 0);
+        m_D3D11DeviceContext->VSSetConstantBuffers(0, 1, constantBuffers);
+
+        m_D3D11DeviceContext->PSSetShader(m_D3D11PixelShader3D.Get(), nullptr, 0);
+        m_D3D11DeviceContext->PSSetConstantBuffers(0, 1, constantBuffers);
+
+        m_D3D11DeviceContext->RSSetState(m_D3D11RasterizerState3D.Get());
+
+        m_D3D11DeviceContext->DrawIndexed(mesh.IndexCount, 0, 0);
+
+
+    }
+
+    const Renderer::Implementation::Mesh3DResource&
+        Renderer::Implementation::GetMesh3D(const Mesh3DHandle& handle) const
+    {
+        if (!handle ||
+            handle.Index >= m_Meshes3D.size() ||
+            m_Meshes3D[handle.Index].Generation != handle.Generation)
+        {
+            throw std::invalid_argument("The 3D mesh handle is invalid.");
+        }
+
+        return m_Meshes3D[handle.Index];
+    }
+
+    const Renderer::Implementation::MaterialResource&
+        Renderer::Implementation::GetMaterial(const MaterialHandle& handle) const
+    {
+        if (!handle ||
+            handle.Index >= m_Materials.size() ||
+            m_Materials[handle.Index].Generation != handle.Generation)
+        {
+            throw std::invalid_argument("The material handle is invalid.");
+        }
+
+        return m_Materials[handle.Index];
+    }
 
     Microsoft::WRL::ComPtr<ID3DBlob> Renderer::Implementation::CompileShader(
         const char* source, 

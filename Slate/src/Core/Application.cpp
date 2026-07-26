@@ -63,7 +63,6 @@ namespace Slate
 			for (const std::unique_ptr<ApplicationLayer>& layer : m_LayerStack)
 				layer->OnRender();
 
-
 			m_Renderer.Present();
 
 		}

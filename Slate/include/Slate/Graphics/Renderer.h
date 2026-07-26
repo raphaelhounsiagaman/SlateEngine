@@ -44,6 +44,8 @@ namespace Slate
 			std::span<const unsigned int> indices
 		);
 
+		MaterialHandle CreateMaterial(const Color& color);
+
 	public:
 
 		void DrawMesh2D(const Mesh2DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform2D& transform);
