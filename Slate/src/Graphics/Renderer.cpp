@@ -15,6 +15,11 @@ namespace Slate
        
 		void CreateDeviceAndSwapChain(HWND windowHandle, unsigned int width, unsigned int height);
 		void CreateRenderTarget();
+
+		void CreateDepthBuffer(unsigned int width, unsigned int height);
+
+
+
 		void SetViewport(unsigned int width, unsigned int height);
 		void ResizeRenderer(unsigned int width, unsigned int height);
 
@@ -36,6 +41,10 @@ namespace Slate
         Microsoft::WRL::ComPtr<IDXGISwapChain> m_D3D11SwapChain;
 
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_D3D11RenderTargetView;
+
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> m_D3D11DepthBuffer;
+        Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_D3D11DepthStencilView;
+
 
         Camera3D m_Camera3D{};
 
@@ -116,7 +125,11 @@ namespace Slate
 
 
 
-    void Renderer::Implementation::CreateDeviceAndSwapChain(HWND windowHandle, unsigned int width, unsigned int height)
+    void Renderer::Implementation::CreateDeviceAndSwapChain(
+        HWND windowHandle, 
+        unsigned int width, 
+        unsigned int height
+    )
     {
         DXGI_SWAP_CHAIN_DESC swapChainDescription{};
         swapChainDescription.BufferDesc.Width = width;
@@ -137,7 +150,7 @@ namespace Slate
 
         UINT deviceFlags = 0;
 
-#ifdef _DEBUG
+#ifdef SLATE_DEBUG
         deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
@@ -188,9 +201,6 @@ namespace Slate
         }
 
         ThrowIfFailed(result, "Failed to create the Direct3D 11 device.");
-
-        
-
     }
 
     void Renderer::Implementation::CreateRenderTarget()
@@ -212,6 +222,37 @@ namespace Slate
                 m_D3D11RenderTargetView.GetAddressOf()
             ),
             "Failed to create the render-target view."
+        );
+    }
+
+    void Renderer::Implementation::CreateDepthBuffer(unsigned int width, unsigned int height)
+    {
+        D3D11_TEXTURE2D_DESC depthBufferDescription{};
+        depthBufferDescription.Width = width;
+        depthBufferDescription.Height = height;
+        depthBufferDescription.MipLevels = 1;
+        depthBufferDescription.ArraySize = 1;
+        depthBufferDescription.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        depthBufferDescription.SampleDesc.Count = 1;
+        depthBufferDescription.Usage = D3D11_USAGE_DEFAULT;
+        depthBufferDescription.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+        ThrowIfFailed(
+            m_D3D11Device->CreateTexture2D(
+                &depthBufferDescription,
+                nullptr,
+                m_D3D11DepthBuffer.GetAddressOf()
+            ),
+            "Failed to create the depth buffer."
+        );
+
+        ThrowIfFailed(
+            m_D3D11Device->CreateDepthStencilView(
+                m_D3D11DepthBuffer.Get(),
+                nullptr,
+                m_D3D11DepthStencilView.GetAddressOf()
+            ),
+            "Failed to create the depth-stencil view."
         );
     }
 
