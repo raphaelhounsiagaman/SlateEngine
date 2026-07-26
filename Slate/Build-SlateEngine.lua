@@ -27,11 +27,6 @@ project "SlateEngine"
     "include"
   }
 
-  libdirs
-  {
-    
-  }
-
   filter "system:windows"
     systemversion "latest"
     buildoptions { "/Zc:preprocessor" }
