@@ -29,22 +29,19 @@ namespace Slate
 
 	void Renderer::Present()
 	{
-		m_Implementation->Present();
+		m_Implementation->Present(m_IsVSyncEnabled);
 	}
 
-	void Renderer::Resize(unsigned int width, unsigned int height)
+	void Renderer::Resize(
+		unsigned int widthPixels,
+		unsigned int heightPixels)
 	{
-		m_Implementation->Resize(width, height);
+		m_Implementation->Resize(widthPixels, heightPixels);
 	}
 
 	void Renderer::SetCamera3D(const Camera3D& camera)
 	{
 		m_Implementation->SetCamera3D(camera);
-	}
-
-	Mesh2DHandle Renderer::CreateMesh2D()
-	{
-		return Mesh2DHandle();
 	}
 
 	Mesh3DHandle Renderer::CreateMesh3D(
@@ -64,15 +61,6 @@ namespace Slate
 		const std::filesystem::path& filePath)
 	{
 		return m_Implementation->CreateTexture2D(filePath);
-	}
-
-	void Renderer::DrawMesh2D(
-		const Mesh2DHandle& meshHandle,
-		const MaterialHandle& materialHandle,
-		const Transform2D& transform
-	)
-	{
-
 	}
 
 	void Renderer::DrawMesh3D(

@@ -33,15 +33,21 @@ namespace Slate
 		void BeginFrame();
 		void Present();
 
-		// TODO: Update this to use Vector2
-		void Resize(unsigned int width,	unsigned int height);
+		void Resize(
+			unsigned int widthPixels,
+			unsigned int heightPixels
+		);
 
 		void SetClearColor(const Color& color) { m_ClearColor = color; }
 		void SetCamera3D(const Camera3D& camera);
+		void SetVSyncEnabled(bool isEnabled)
+		{
+			m_IsVSyncEnabled = isEnabled;
+		}
+		bool IsVSyncEnabled() const { return m_IsVSyncEnabled; }
 
 	public:
 
-		Mesh2DHandle CreateMesh2D();
 		Mesh3DHandle CreateMesh3D(
 			std::span<const Vertex3D> vertices,
 			std::span<const unsigned int> indices
@@ -54,7 +60,6 @@ namespace Slate
 
 	public:
 
-		void DrawMesh2D(const Mesh2DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform2D& transform);
 		void DrawMesh3D(const Mesh3DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform3D& transform);
 		void DrawRectangle2D(
 			const Rectangle2D& rectangle,
@@ -79,6 +84,7 @@ namespace Slate
 		std::unique_ptr<Implementation> m_Implementation;
 
 		Color m_ClearColor;
+		bool m_IsVSyncEnabled = false;
 
 	};
 

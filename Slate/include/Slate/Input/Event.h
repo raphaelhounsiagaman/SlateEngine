@@ -1,7 +1,9 @@
 #pragma once
 
-#include <string>
 #include <functional>
+#include <string>
+#include <type_traits>
+#include <utility>
 
 namespace Slate
 {
@@ -23,7 +25,7 @@ namespace Slate
 	public:
 		bool Handled = false;
 
-		virtual ~Event() {}
+		virtual ~Event() = default;
 		virtual EventType GetEventType() const = 0;
 		virtual const char* GetName() const = 0;
 		virtual std::string ToString() const { return GetName(); }
@@ -31,20 +33,21 @@ namespace Slate
 
 	class EventDispatcher
 	{
-		template<typename TEvent>
-			requires std::is_base_of_v<Event, TEvent>
-		using EventFn = std::function<bool(TEvent&)>;
 	public:
-		EventDispatcher(Event& event)
+		explicit EventDispatcher(Event& event)
 			: m_Event(event) {}
 
-		template<typename TEvent>
+		template<typename TEvent, typename TFunction>
 			requires std::is_base_of_v<Event, TEvent>
-		bool Dispatch(EventFn<TEvent> func)
+		bool Dispatch(TFunction&& function)
 		{
-			if (m_Event.GetEventType() == TEvent::GetStaticType() && !m_Event.Handled)
+			if (m_Event.GetEventType() == TEvent::GetStaticType() &&
+				!m_Event.Handled)
 			{
-				m_Event.Handled = func(*(TEvent*)&m_Event);
+				m_Event.Handled = std::invoke(
+					std::forward<TFunction>(function),
+					static_cast<TEvent&>(m_Event)
+				);
 				return true;
 			}
 			return false;

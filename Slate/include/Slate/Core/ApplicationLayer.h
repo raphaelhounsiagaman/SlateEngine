@@ -2,7 +2,9 @@
 
 #include "Slate/Input/Event.h"
 
+#include <concepts>
 #include <memory>
+#include <utility>
 
 namespace Slate
 {

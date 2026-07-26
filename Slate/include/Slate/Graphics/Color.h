@@ -1,38 +1,24 @@
 #pragma once
 
-#include <array> 
+#include <array>
+#include <cstdint>
 
 namespace Slate
 {
 	struct Color
 	{
 		Color() = default;
-		Color(unsigned short r, unsigned short g, unsigned short b, unsigned short a = 255)
+		Color(
+			std::uint8_t r,
+			std::uint8_t g,
+			std::uint8_t b,
+			std::uint8_t a = 255)
 			: R(r), G(g), B(b), A(a) {}
 
-		void FromFloats(float r, float g, float b, float a = 1.0f)
-		{
-			R = static_cast<unsigned short>(r * 255);
-			G = static_cast<unsigned short>(g * 255);
-			B = static_cast<unsigned short>(b * 255);
-			A = static_cast<unsigned short>(a * 255);
-		}
-			
-
-		unsigned short R{ 255 };
-		unsigned short G{ 255 };
-		unsigned short B{ 255 };
-		unsigned short A{ 255 };
-
-		std::array<unsigned short, 4> GetUIntArray() const
-		{
-			return {
-				R,
-				G,
-				B,
-				A
-			};
-		}
+		std::uint8_t R{ 255 };
+		std::uint8_t G{ 255 };
+		std::uint8_t B{ 255 };
+		std::uint8_t A{ 255 };
 
 		std::array<float, 4> GetFloatArray() const
 		{
@@ -44,7 +30,6 @@ namespace Slate
 			};
 		}
 
-		// Predefined Colors
 		static const Color WHITE;
 		static const Color BLACK;
 

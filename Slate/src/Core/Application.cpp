@@ -2,8 +2,10 @@
 
 #include "Slate/Input/Input.h"
 
-#include <ranges>
+#include <algorithm>
+#include <cassert>
 #include <chrono>
+#include <ranges>
 
 namespace Slate
 { 
@@ -19,7 +21,11 @@ namespace Slate
 			EmitEvent(event);
 		});
 		m_Window.Create(info);
-		m_Renderer.Create(m_Window.GetHandle(), m_Window.GetWidth(), m_Window.GetHeight());
+		m_Renderer.Create(
+			m_Window.GetHandle(),
+			m_Window.GetClientWidthPixels(),
+			m_Window.GetClientHeightPixels()
+		);
 
 		m_Running = true;
 	}
@@ -41,9 +47,9 @@ namespace Slate
 
 	void Application::Run()
 	{
-		using namespace std::chrono;
-
-		auto lastTime = high_resolution_clock::now();
+		using Clock = std::chrono::steady_clock;
+		constexpr float maximumDeltaTimeSeconds = 0.1f;
+		auto previousUpdateTime = Clock::now();
 
 		while (m_Running)
 		{
@@ -56,20 +62,25 @@ namespace Slate
 				break;
 			}
 
-			auto currentTime = high_resolution_clock::now();
+			const auto currentUpdateTime = Clock::now();
 
 			if (m_Window.IsMinimized())
 			{
-				lastTime = currentTime;
 				m_Window.WaitForEvents();
+				previousUpdateTime = Clock::now();
 				continue;
 			}
 
-			float deltaTime = duration<float, seconds::period>(currentTime - lastTime).count();
-			lastTime = currentTime;
+			const float elapsedSeconds =
+				std::chrono::duration<float>(
+					currentUpdateTime - previousUpdateTime
+				).count();
+			const float deltaTimeSeconds =
+				std::min(elapsedSeconds, maximumDeltaTimeSeconds);
+			previousUpdateTime = currentUpdateTime;
 
 			for (const std::unique_ptr<ApplicationLayer>& layer : m_LayerStack)
-				layer->OnUpdate(deltaTime);
+				layer->OnUpdate(deltaTimeSeconds);
 
 			m_Renderer.BeginFrame();
 
@@ -178,7 +189,7 @@ namespace Slate
 
 	Application& Application::Get()
 	{
-		//assert(s_Application);
+		assert(s_Application != nullptr);
 		return *s_Application;
 	}
 

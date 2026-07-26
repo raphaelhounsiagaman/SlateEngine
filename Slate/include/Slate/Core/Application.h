@@ -6,6 +6,8 @@
 #include "Slate/Input/InputEvents.h"
 #include "ApplicationLayer.h"
 
+#include <memory>
+#include <type_traits>
 #include <vector>
 
 namespace Slate
@@ -77,7 +79,9 @@ namespace Slate
 
 	};
 
-	Application* CreateApplication(Slate::WindowInformation windowInfo);
+	std::unique_ptr<Application> CreateApplication(
+		Slate::WindowInformation windowInfo
+	);
 }
 
 

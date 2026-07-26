@@ -4,10 +4,9 @@
 
 #include <Windows.h>
 
-#include <stdexcept>
 #include <memory>
-
-extern Slate::Application* Slate::CreateApplication(Slate::WindowInformation windowInfo);
+#include <stdexcept>
+#include <utility>
 
 int WINAPI wWinMain(
 	HINSTANCE instanceHandle,
@@ -28,7 +27,8 @@ int WINAPI wWinMain(
 
 	try
 	{
-		std::unique_ptr<Slate::Application> app(Slate::CreateApplication(windowInfo));
+		std::unique_ptr<Slate::Application> app =
+			Slate::CreateApplication(std::move(windowInfo));
 		app->Run();
 
 	}

@@ -59,6 +59,7 @@ namespace Slate
         Create3DPipeline();
         Create2DResources();
         SetViewport(width, height);
+        m_Canvas2DCommands.reserve(64);
     }
 
     void Renderer::Implementation::CreateDeviceAndSwapChain(
@@ -455,6 +456,7 @@ namespace Slate
 
         m_ViewportWidth = width;
         m_ViewportHeight = height;
+        UpdateCameraMatrices();
     }
 
     void Renderer::Implementation::Resize(unsigned int width, unsigned int height)
@@ -554,15 +556,16 @@ namespace Slate
             m_D3D11DepthStencilView.Get()
         );
 
+        Bind3DPipeline3D();
         ClearRenderTarget(clearColor);
     }
 
-    void Renderer::Implementation::Present()
+    void Renderer::Implementation::Present(bool isVSyncEnabled)
     {
         Render2DCommands();
 
         ThrowIfFailed(
-            m_D3D11SwapChain->Present(1, 0),
+            m_D3D11SwapChain->Present(isVSyncEnabled ? 1u : 0u, 0),
             "Failed to present the swap chain."
         );
     }
@@ -585,7 +588,28 @@ namespace Slate
 
     void Renderer::Implementation::SetCamera3D(const Camera3D& camera)
     {
-            m_Camera3D = camera;
+        m_Camera3D = camera;
+        UpdateCameraMatrices();
+    }
+
+    void Renderer::Implementation::UpdateCameraMatrices()
+    {
+        if (m_ViewportWidth == 0 || m_ViewportHeight == 0)
+        {
+            return;
+        }
+
+        const float aspectRatio =
+            static_cast<float>(m_ViewportWidth) /
+            static_cast<float>(m_ViewportHeight);
+
+        m_ViewMatrix = Matrix4x4::View(m_Camera3D.Transform);
+        m_ProjectionMatrix = Matrix4x4::Perspective(
+            m_Camera3D.VerticalFieldOfViewRadians,
+            aspectRatio,
+            m_Camera3D.NearPlaneMetres,
+            m_Camera3D.FarPlaneMetres
+        );
     }
 
     Mesh3DHandle Renderer::Implementation::CreateMesh3D(
@@ -747,7 +771,6 @@ namespace Slate
 
         UpdateObjectConstants(transform, material);
         BindMesh3D(mesh);
-        Bind3DPipeline3D();
 
         m_D3D11DeviceContext->DrawIndexed(mesh.IndexCount, 0, 0);
     }
@@ -821,22 +844,13 @@ namespace Slate
         const MaterialResource& material
     )
     {
-        const float aspectRatio =
-            static_cast<float>(m_ViewportWidth) /
-            static_cast<float>(m_ViewportHeight);
-
         const std::array<float, 4> albedo = material.Albedo.GetFloatArray();
 
         const ObjectConstants constants
         {
             Matrix4x4::World(transform),
-            Matrix4x4::View(m_Camera3D.Transform),
-            Matrix4x4::Perspective(
-                m_Camera3D.VerticalFieldOfViewRadians,
-                aspectRatio,
-                m_Camera3D.NearPlaneMetres,
-                m_Camera3D.FarPlaneMetres
-            ),
+            m_ViewMatrix,
+            m_ProjectionMatrix,
             {
                 albedo[0],
                 albedo[1],

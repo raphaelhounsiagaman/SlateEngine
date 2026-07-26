@@ -25,7 +25,7 @@ namespace Slate
 		void Create(HWND windowHandle, unsigned int width, unsigned int height);
 		void Destroy();
 		void BeginFrame(const Color& clearColor);
-		void Present();
+		void Present(bool isVSyncEnabled);
 		void Resize(unsigned int width, unsigned int height);
 
 		void SetCamera3D(const Camera3D& camera);
@@ -145,6 +145,7 @@ namespace Slate
 		void Destroy2DRenderTarget();
 		void CreateTextureBitmap(Texture2DResource& texture);
 		void SetViewport(unsigned int width, unsigned int height);
+		void UpdateCameraMatrices();
 
 		void ClearRenderTarget(const Color& color);
 
@@ -200,6 +201,8 @@ namespace Slate
 		std::vector<Canvas2DCommand> m_Canvas2DCommands;
 
 		Camera3D m_Camera3D{};
+		Matrix4x4 m_ViewMatrix = Matrix4x4::Identity();
+		Matrix4x4 m_ProjectionMatrix = Matrix4x4::Identity();
 
 		unsigned int m_ViewportWidth = 0;
 		unsigned int m_ViewportHeight = 0;
