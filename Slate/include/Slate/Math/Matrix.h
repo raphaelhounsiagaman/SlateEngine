@@ -15,7 +15,7 @@ namespace Slate
 		static Matrix4x4 Rotation(const Quaternion& rotation);
 
 		static Matrix4x4 World(const Transform3D& transform);
-		static Matrix4x4 View(const Transform3D& transform);
+		static Matrix4x4 View(const Transform3D& cameraTransform);
 
 		static Matrix4x4 Perspective(
 			float verticalFieldOfView,
