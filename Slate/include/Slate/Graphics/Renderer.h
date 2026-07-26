@@ -45,6 +45,7 @@ namespace Slate
 			m_IsVSyncEnabled = isEnabled;
 		}
 		bool IsVSyncEnabled() const { return m_IsVSyncEnabled; }
+		bool IsTearingSupported() const;
 
 	public:
 

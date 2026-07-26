@@ -129,7 +129,7 @@ namespace Slate
 		return s_ScrollDelta;
 	}
 
-	void Input::BeginFrame()
+	void Input::EndUpdate()
 	{
 		for (ButtonState& state : s_Keys)
 		{

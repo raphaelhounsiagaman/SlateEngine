@@ -6,7 +6,7 @@
 #include <d3d11.h>
 #include <d3dcompiler.h>
 #include <dwrite.h>
-#include <dxgi.h>
+#include <dxgi1_5.h>
 #include <wincodec.h>
 #include <wrl/client.h>
 
@@ -27,6 +27,7 @@ namespace Slate
 		void BeginFrame(const Color& clearColor);
 		void Present(bool isVSyncEnabled);
 		void Resize(unsigned int width, unsigned int height);
+		bool IsTearingSupported() const { return m_IsTearingSupported; }
 
 		void SetCamera3D(const Camera3D& camera);
 
@@ -137,6 +138,7 @@ namespace Slate
 			unsigned int width,
 			unsigned int height
 		);
+		bool QueryTearingSupport() const;
 		void CreateRenderTarget();
 		void CreateDepthBuffer(unsigned int width, unsigned int height);
 		void Create3DPipeline();
@@ -211,6 +213,7 @@ namespace Slate
 		unsigned int m_NextMaterialGeneration = 1;
 		unsigned int m_NextTextureGeneration = 1;
 		bool m_DidInitializeCom = false;
+		bool m_IsTearingSupported = false;
 	};
 
 }

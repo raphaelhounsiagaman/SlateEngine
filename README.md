@@ -16,11 +16,13 @@ appear in a game's build configuration.
 - Application and layer lifecycle
 - Deferred layer transitions after update and render work completes
 - Keyboard, mouse-button, pointer, wheel, focus, and resize events
-- Frame-based input queries for down, pressed, and released state
+- Update-based input queries for down, pressed, and released state
 - Resizable Win32 window and D3D11 swap chain
 - Mesh, material, camera, and transform-based 3D rendering
 - Canvas UI with labels, buttons, images, text styles, and hit testing
-- Optional VSync, disabled by default for uncapped performance measurements
+- Independently configurable update and rendering rate limits
+- Engine-measured UPS, FPS, and average stage durations
+- Optional VSync with capability-driven DXGI tearing when disabled
 - SI world-space convention: one world unit is one metre
 
 ## Requirements
@@ -85,6 +87,28 @@ VSync can be enabled explicitly when desired:
 ```cpp
 Slate::Application::Get().GetRenderer().SetVSyncEnabled(true);
 ```
+
+Update and rendering rates are independently configurable. Zero keeps a stage
+uncapped:
+
+```cpp
+Slate::ApplicationLoopSettings settings;
+settings.UpdateRateLimit = 0.0;
+settings.FrameRateLimit = 0.0;
+Slate::Application::Get().SetLoopSettings(settings);
+```
+
+Measured rates and average stage durations are available from the application:
+
+```cpp
+const Slate::PerformanceStatistics& performance =
+    Slate::Application::Get().GetPerformanceStatistics();
+```
+
+On Windows, SlateEngine queries `DXGI_FEATURE_PRESENT_ALLOW_TEARING` before
+creating the swap chain. Immediate presentation uses tearing only when the
+system reports support and otherwise falls back without changing the game
+configuration.
 
 ## Source layout
 

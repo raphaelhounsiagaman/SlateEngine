@@ -44,6 +44,11 @@ namespace Slate
 		m_Implementation->SetCamera3D(camera);
 	}
 
+	bool Renderer::IsTearingSupported() const
+	{
+		return m_Implementation->IsTearingSupported();
+	}
+
 	Mesh3DHandle Renderer::CreateMesh3D(
 		std::span<const Vertex3D> vertices,
 		std::span<const unsigned int> indices

@@ -68,6 +68,8 @@ namespace Slate
         unsigned int height
     )
     {
+        m_IsTearingSupported = QueryTearingSupport();
+
         DXGI_SWAP_CHAIN_DESC swapChainDescription{};
         swapChainDescription.BufferDesc.Width = width;
         swapChainDescription.BufferDesc.Height = height;
@@ -83,7 +85,9 @@ namespace Slate
         swapChainDescription.OutputWindow = windowHandle;
         swapChainDescription.Windowed = TRUE;
         swapChainDescription.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        swapChainDescription.Flags = 0;
+        swapChainDescription.Flags = m_IsTearingSupported
+            ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+            : 0;
 
         UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 
@@ -138,6 +142,24 @@ namespace Slate
         }
 
         ThrowIfFailed(result, "Failed to create the Direct3D 11 device.");
+    }
+
+    bool Renderer::Implementation::QueryTearingSupport() const
+    {
+        Microsoft::WRL::ComPtr<IDXGIFactory5> factory;
+        if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(factory.GetAddressOf()))))
+        {
+            return false;
+        }
+
+        BOOL isTearingSupported = FALSE;
+        const HRESULT result = factory->CheckFeatureSupport(
+            DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+            &isTearingSupported,
+            sizeof(isTearingSupported)
+        );
+
+        return SUCCEEDED(result) && isTearingSupported == TRUE;
     }
 
     void Renderer::Implementation::CreateRenderTarget()
@@ -488,7 +510,9 @@ namespace Slate
                 width,
                 height,
                 DXGI_FORMAT_UNKNOWN,
-                0
+                m_IsTearingSupported
+                    ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+                    : 0
             ),
             "Failed to resize the swap-chain buffers."
         );
@@ -565,7 +589,12 @@ namespace Slate
         Render2DCommands();
 
         ThrowIfFailed(
-            m_D3D11SwapChain->Present(isVSyncEnabled ? 1u : 0u, 0),
+            m_D3D11SwapChain->Present(
+                isVSyncEnabled ? 1u : 0u,
+                !isVSyncEnabled && m_IsTearingSupported
+                    ? DXGI_PRESENT_ALLOW_TEARING
+                    : 0
+            ),
             "Failed to present the swap chain."
         );
     }

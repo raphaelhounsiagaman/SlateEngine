@@ -9,8 +9,8 @@ namespace Slate
 	class Application;
 	class Window;
 
-	// Frame-based input state. "Pressed" and "Released" are true only during the
-	// frame in which the transition occurred; "Down" remains true while held.
+	// Update-based input state. "Pressed" and "Released" remain true until the
+	// next completed update; "Down" remains true while held.
 	class Input final
 	{
 	public:
@@ -29,7 +29,7 @@ namespace Slate
 		static Vector2f GetScrollDelta();
 
 	private:
-		static void BeginFrame();
+		static void EndUpdate();
 		static void SetKeyState(KeyCode key, bool isDown);
 		static void SetMouseButtonState(MouseButton button, bool isDown);
 		static Vector2i SetMousePosition(const Vector2i& position);
