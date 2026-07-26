@@ -1,6 +1,7 @@
 #include "Slate/Graphics/Renderer.h"
 
 #include <d3d11.h>
+#include <d3dcompiler.h>
 #include <dxgi.h>
 #include <wrl/client.h>
 
@@ -17,8 +18,7 @@ namespace Slate
 		void CreateRenderTarget();
 
 		void CreateDepthBuffer(unsigned int width, unsigned int height);
-
-
+        void Create3DPipeline();
 
 		void SetViewport(unsigned int width, unsigned int height);
 		void ResizeRenderer(unsigned int width, unsigned int height);
@@ -31,8 +31,34 @@ namespace Slate
 		void ClearRenderTarget(const Color& color);
         void SetCamera3D(const Camera3D& camera);
 
+        Mesh3DHandle CreateMesh3D(
+            std::span<const Vertex3D> vertices,
+            std::span<const unsigned int> indices
+        );
+        MaterialHandle CreateMaterial(const Color& color);
+
+        void DrawMesh3D(
+            const Mesh3DHandle& meshHandle,
+            const MaterialHandle& materialHandle,
+            const Transform3D& transform
+        );
 
     private:
+
+        struct ObjectConstants
+        {
+            Matrix4x4 World;
+            Matrix4x4 View;
+            Matrix4x4 Projection;
+            float Albedo[4];
+        };
+
+        Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(
+            const char* source,
+            const char* entryPoint,
+            const char* target
+        );
+
         void ThrowIfFailed(HRESULT result, const char* message);
 
     private:
@@ -41,10 +67,14 @@ namespace Slate
         Microsoft::WRL::ComPtr<IDXGISwapChain> m_D3D11SwapChain;
 
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_D3D11RenderTargetView;
-
         Microsoft::WRL::ComPtr<ID3D11Texture2D> m_D3D11DepthBuffer;
         Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_D3D11DepthStencilView;
 
+        Microsoft::WRL::ComPtr<ID3D11VertexShader> m_D3D11VertexShader3D;
+        Microsoft::WRL::ComPtr<ID3D11PixelShader> m_D3D11PixelShader3D;
+        Microsoft::WRL::ComPtr<ID3D11InputLayout> m_D3D11InputLayout3D;
+        Microsoft::WRL::ComPtr<ID3D11Buffer> m_D3D11ObjectConstantBuffer;
+        Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_D3D11RasterizerState3D;
 
         Camera3D m_Camera3D{};
 
@@ -63,7 +93,7 @@ namespace Slate
         m_Implementation->CreateDeviceAndSwapChain(windowHandle, width, height);
         m_Implementation->CreateRenderTarget();
 		m_Implementation->CreateDepthBuffer(width, height);
-
+        m_Implementation->Create3DPipeline();
         m_Implementation->SetViewport(width, height);
     }
 
@@ -257,6 +287,141 @@ namespace Slate
         );
     }
 
+    void Renderer::Implementation::Create3DPipeline()
+    {
+        static constexpr char shaderSource[] = R"(
+            cbuffer ObjectConstants : register(b0)
+            {
+                row_major float4x4 World;
+                row_major float4x4 View;
+                row_major float4x4 Projection;
+                float4 Albedo;
+            };
+
+            struct VertexInput
+            {
+                float3 Position : POSITION;
+                float3 Normal : NORMAL;
+            };
+
+            struct VertexOutput
+            {
+                float4 Position : SV_POSITION;
+                float3 WorldNormal : NORMAL;
+            };
+
+            VertexOutput VSMain(VertexInput input)
+            {
+                VertexOutput output;
+
+                float4 worldPosition = mul(float4(input.Position, 1.0f), World);
+                float4 viewPosition = mul(worldPosition, View);
+
+                output.Position = mul(viewPosition, Projection);
+                output.WorldNormal = normalize(mul(float4(input.Normal, 0.0f), World).xyz);
+
+                return output;
+            }
+
+            float4 PSMain(VertexOutput input) : SV_TARGET
+            {
+                const float3 lightDirection = normalize(float3(-0.5f, 0.8f, -0.6f));
+                const float diffuse = saturate(dot(normalize(input.WorldNormal), lightDirection));
+                const float brightness = 0.25f + diffuse * 0.75f;
+
+                return float4(Albedo.rgb * brightness, Albedo.a);
+            }
+        )";
+
+        const Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode =
+            CompileShader(shaderSource, "VSMain", "vs_5_0");
+
+        const Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode =
+            CompileShader(shaderSource, "PSMain", "ps_5_0");
+
+        ThrowIfFailed(
+            m_D3D11Device->CreateVertexShader(
+                vertexShaderByteCode->GetBufferPointer(),
+                vertexShaderByteCode->GetBufferSize(),
+                nullptr,
+                m_D3D11VertexShader3D.GetAddressOf()
+            ),
+            "Failed to create the 3D vertex shader."
+        );
+
+        ThrowIfFailed(
+            m_D3D11Device->CreatePixelShader(
+                pixelShaderByteCode->GetBufferPointer(),
+                pixelShaderByteCode->GetBufferSize(),
+                nullptr,
+                m_D3D11PixelShader3D.GetAddressOf()
+            ),
+            "Failed to create the 3D pixel shader."
+        );
+
+        const D3D11_INPUT_ELEMENT_DESC inputElements[]
+        {
+            {
+                "POSITION",
+                0,
+                DXGI_FORMAT_R32G32B32_FLOAT,
+                0,
+                static_cast<UINT>(offsetof(Vertex3D, Position)),
+                D3D11_INPUT_PER_VERTEX_DATA,
+                0
+            },
+            {
+                "NORMAL",
+                0,
+                DXGI_FORMAT_R32G32B32_FLOAT,
+                0,
+                static_cast<UINT>(offsetof(Vertex3D, Normal)),
+                D3D11_INPUT_PER_VERTEX_DATA,
+                0
+            }
+        };
+
+        ThrowIfFailed(
+            m_D3D11Device->CreateInputLayout(
+                inputElements,
+                static_cast<UINT>(std::size(inputElements)),
+                vertexShaderByteCode->GetBufferPointer(),
+                vertexShaderByteCode->GetBufferSize(),
+                m_D3D11InputLayout3D.GetAddressOf()
+            ),
+            "Failed to create the 3D input layout."
+        );
+
+        D3D11_BUFFER_DESC constantBufferDescription{};
+        constantBufferDescription.ByteWidth = sizeof(ObjectConstants);
+        constantBufferDescription.Usage = D3D11_USAGE_DEFAULT;
+        constantBufferDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+
+        ThrowIfFailed(
+            m_D3D11Device->CreateBuffer(
+                &constantBufferDescription,
+                nullptr,
+                m_D3D11ObjectConstantBuffer.GetAddressOf()
+            ),
+            "Failed to create the 3D object constant buffer."
+        );
+
+        D3D11_RASTERIZER_DESC rasterizerDescription{};
+        rasterizerDescription.FillMode = D3D11_FILL_SOLID;
+        rasterizerDescription.CullMode = D3D11_CULL_BACK;
+        rasterizerDescription.FrontCounterClockwise = FALSE;
+        rasterizerDescription.DepthClipEnable = TRUE;
+
+        ThrowIfFailed(
+            m_D3D11Device->CreateRasterizerState(
+                &rasterizerDescription,
+                m_D3D11RasterizerState3D.GetAddressOf()
+            ),
+            "Failed to create the 3D rasterizer state."
+        );
+    
+    }
+
     void Renderer::Implementation::SetViewport(unsigned int width, unsigned int height)
     {
         D3D11_VIEWPORT viewport{};
@@ -362,6 +527,67 @@ namespace Slate
     void Renderer::Implementation::SetCamera3D(const Camera3D& camera)
     {
             m_Camera3D = camera;
+    }
+
+    Mesh3DHandle Renderer::Implementation::CreateMesh3D(std::span<const Vertex3D> vertices, std::span<const unsigned int> indices)
+    {
+        return Mesh3DHandle();
+    }
+
+    MaterialHandle Renderer::Implementation::CreateMaterial(const Color& color)
+    {
+        return MaterialHandle();
+    }
+
+    void Renderer::Implementation::DrawMesh3D(const Mesh3DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform3D& transform)
+    {}
+
+    Microsoft::WRL::ComPtr<ID3DBlob> Renderer::Implementation::CompileShader(
+        const char* source, 
+        const char* entryPoint,
+        const char* target
+    )
+    {
+        UINT compileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+
+#ifdef SLATE_DEBUG
+        compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
+        Microsoft::WRL::ComPtr<ID3DBlob> shaderByteCode;
+        Microsoft::WRL::ComPtr<ID3DBlob> errors;
+
+        const HRESULT result = D3DCompile(
+            source,
+            std::strlen(source),
+            nullptr,
+            nullptr,
+            nullptr,
+            entryPoint,
+            target,
+            compileFlags,
+            0,
+            shaderByteCode.GetAddressOf(),
+            errors.GetAddressOf()
+        );
+
+        if (FAILED(result))
+        {
+            std::string message = "Failed to compile the Direct3D 11 shader.";
+
+            if (errors)
+            {
+                message += "\n";
+                message.append(
+                    static_cast<const char*>(errors->GetBufferPointer()),
+                    errors->GetBufferSize()
+                );
+            }
+
+            throw std::runtime_error(message);
+        }
+
+        return shaderByteCode;
     }
 
     void Renderer::Implementation::ThrowIfFailed(HRESULT result, const char* message)
