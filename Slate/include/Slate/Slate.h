@@ -17,8 +17,12 @@
 #include "Graphics/Window.h"
 
 #include "Input/Event.h"
+#include "Input/Input.h"
 #include "Input/InputEvents.h"
+#include "Input/KeyCodes.h"
 #include "Input/KeyEvent.h"
+#include "Input/MouseCodes.h"
 #include "Input/MouseEvent.h"
+#include "Input/WindowEvent.h"
 
 #include "Math/Math.h"
