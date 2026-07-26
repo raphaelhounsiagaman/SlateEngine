@@ -17,6 +17,7 @@ namespace Slate
 		{}
 
 		std::wstring Name = L"Slate Application";
+		// Client-area dimensions are measured in screen pixels.
 		unsigned int Width = 1280;
 		unsigned int Height = 720;
 

@@ -15,6 +15,8 @@ namespace Slate
 	struct Transform3D
 	{
 		Quaternion Rotation{ 0.0f, 0.0f, 0.0f, 1.0f };
+		// Slate's world-space convention is one unit per metre. Scale is
+		// dimensionless and Rotation is represented by a unit quaternion.
 		Vector3f Position{ 0.0f, 0.0f, 0.0f };
 		Vector3f Scale{ 1.0f, 1.0f, 1.0f };
 	};

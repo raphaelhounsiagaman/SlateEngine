@@ -24,8 +24,8 @@ namespace Slate
 		static bool IsMouseButtonPressed(MouseButton button);
 		static bool IsMouseButtonReleased(MouseButton button);
 
-		static Vector2i GetMousePosition();
-		static Vector2i GetMouseDelta();
+		static Vector2i GetMousePosition(); // Client-area pixels.
+		static Vector2i GetMouseDelta();    // Pixels accumulated this frame.
 		static Vector2f GetScrollDelta();
 
 	private:

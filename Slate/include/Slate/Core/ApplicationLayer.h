@@ -13,7 +13,8 @@ namespace Slate
 
 		virtual void OnEvent(Event& event) {}
 
-		virtual void OnUpdate(float ts) {}
+		// deltaTimeSeconds is measured in seconds.
+		virtual void OnUpdate(float deltaTimeSeconds) {}
 		virtual void OnRender() {}
 
 		template<std::derived_from<ApplicationLayer> T, typename... Args>

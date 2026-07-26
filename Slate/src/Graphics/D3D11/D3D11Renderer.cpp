@@ -523,10 +523,10 @@ namespace Slate
             Matrix4x4::World(transform),
             Matrix4x4::View(m_Camera3D.Transform),
             Matrix4x4::Perspective(
-                m_Camera3D.FOV,
+                m_Camera3D.VerticalFieldOfViewRadians,
                 aspectRatio,
-                m_Camera3D.NearPlane,
-                m_Camera3D.FarPlane
+                m_Camera3D.NearPlaneMetres,
+                m_Camera3D.FarPlaneMetres
             ),
             {
                 albedo[0],

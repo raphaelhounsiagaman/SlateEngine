@@ -107,8 +107,8 @@ namespace Slate
 	Matrix4x4 Matrix4x4::Perspective(
 		float verticalFieldOfView,
 		float aspectRatio,
-		float nearPlane,
-		float farPlane)
+		float nearPlaneMetres,
+		float farPlaneMetres)
 	{
 		if (verticalFieldOfView <= 0.0f || verticalFieldOfView >= 3.1415926535f)
 		{
@@ -120,13 +120,15 @@ namespace Slate
 			throw std::invalid_argument("The aspect ratio must be greater than zero.");
 		}
 
-		if (nearPlane <= 0.0f || farPlane <= nearPlane)
+		if (nearPlaneMetres <= 0.0f ||
+			farPlaneMetres <= nearPlaneMetres)
 		{
 			throw std::invalid_argument("The clipping planes must satisfy 0 < nearPlane < farPlane.");
 		}
 
 		const float verticalScale = 1.0f / std::tan(verticalFieldOfView * 0.5f);
-		const float depthScale = farPlane / (farPlane - nearPlane);
+		const float depthScale =
+			farPlaneMetres / (farPlaneMetres - nearPlaneMetres);
 
 		Matrix4x4 result{};
 
@@ -134,7 +136,7 @@ namespace Slate
 		result.Values[1][1] = verticalScale;
 		result.Values[2][2] = depthScale;
 		result.Values[2][3] = 1.0f;
-		result.Values[3][2] = -nearPlane * depthScale;
+		result.Values[3][2] = -nearPlaneMetres * depthScale;
 
 		return result;
 	}
