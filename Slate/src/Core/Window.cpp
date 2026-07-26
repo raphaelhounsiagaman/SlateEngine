@@ -5,6 +5,8 @@
 void Slate::Window::Create(const WindowInformation& info)
 {
     m_WindowInfo = info;
+    m_Width = info.Width;
+    m_Height = info.Height;
 
     WNDCLASSEXW windowClass{};
     windowClass.cbSize = sizeof(WNDCLASSEXW);
@@ -131,4 +133,3 @@ LRESULT CALLBACK Slate::Window::WindowProcedure(
     }
     }
 }
-
