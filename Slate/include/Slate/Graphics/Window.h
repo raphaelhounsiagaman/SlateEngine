@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Slate/Input/Event.h"
+#include "Slate/Math/Vector.h"
 
 #include <Windows.h>
 
@@ -15,22 +16,19 @@ namespace Slate
 		WindowInformation() = default;
 		WindowInformation(
 			std::wstring name,
-			unsigned int widthPixels,
-			unsigned int heightPixels,
+			Vector2iu windowSize,
 			HINSTANCE instance,
 			PWSTR commandLine,
 			int showCommand)
 			: Name(std::move(name)),
-			  WidthPixels(widthPixels),
-			  HeightPixels(heightPixels),
-			  InstanceHandle(instance),
-			  CommandLine(commandLine),
-			  ShowCommand(showCommand)
+				WindowSize(windowSize),
+				InstanceHandle(instance),
+				CommandLine(commandLine),
+				ShowCommand(showCommand)
 		{}
 
 		std::wstring Name = L"Slate Application";
-		unsigned int WidthPixels = 1280;
-		unsigned int HeightPixels = 720;
+		Vector2iu WindowSize{ 1280, 720 };
 
 	private:
 		HINSTANCE InstanceHandle{};
@@ -63,14 +61,7 @@ namespace Slate
 
 		HWND GetHandle() const { return m_WindowHandle; }
 
-		unsigned int GetClientWidthPixels() const
-		{
-			return m_ClientWidthPixels;
-		}
-		unsigned int GetClientHeightPixels() const
-		{
-			return m_ClientHeightPixels;
-		}
+		Vector2iu GetWindowSize() const { return m_WindowSize; }
 
 	private:
 
@@ -93,8 +84,7 @@ namespace Slate
 		bool m_ShouldClose = false;
 		bool m_IsMinimized = false;
 
-		unsigned int m_ClientWidthPixels = 0;
-		unsigned int m_ClientHeightPixels = 0;
+		Vector2iu m_WindowSize{ 0, 0 };
 
 		EventCallback m_EventCallback;
 	};

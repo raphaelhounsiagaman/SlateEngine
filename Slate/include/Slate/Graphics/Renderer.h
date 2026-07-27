@@ -27,16 +27,13 @@ namespace Slate
 		Renderer(const Renderer&) = delete;
 		Renderer& operator=(const Renderer&) = delete;
 
-		void Create(HWND windowHandle, unsigned int width, unsigned int height);
+		void Create(HWND windowHandle, Vector2iu windowSize);
 		void Destroy();
 
 		void BeginFrame();
 		void Present();
 
-		void Resize(
-			unsigned int widthPixels,
-			unsigned int heightPixels
-		);
+		void Resize(Vector2iu windowSize);
 
 		void SetClearColor(const Color& color) { m_ClearColor = color; }
 		void SetCamera3D(const Camera3D& camera);
@@ -44,6 +41,7 @@ namespace Slate
 		{
 			m_IsVSyncEnabled = isEnabled;
 		}
+
 		bool IsVSyncEnabled() const { return m_IsVSyncEnabled; }
 		bool IsTearingSupported() const;
 

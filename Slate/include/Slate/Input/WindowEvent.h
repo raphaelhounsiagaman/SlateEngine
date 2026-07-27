@@ -16,22 +16,21 @@ namespace Slate
 	{
 	public:
 		WindowResizeEvent(unsigned int width, unsigned int height)
-			: m_Width(width), m_Height(height)
+			: m_WindowSize(width, height)
 		{}
 
-		unsigned int GetWidth() const { return m_Width; }
-		unsigned int GetHeight() const { return m_Height; }
+		Vector2iu GetWindowSize() const { return m_WindowSize; }
 
 		std::string ToString() const override
 		{
-			return std::format("WindowResizeEvent: {}, {}", m_Width, m_Height);
+			return std::format("WindowResizeEvent: {}, {}", m_WindowSize.X, m_WindowSize.Y);
 		}
 
 		EVENT_CLASS_TYPE(WindowResize)
 
 	private:
-		unsigned int m_Width;
-		unsigned int m_Height;
+		Vector2iu m_WindowSize{};
+
 	};
 
 	class WindowFocusEvent : public Event

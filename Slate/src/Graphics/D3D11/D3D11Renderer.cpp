@@ -39,40 +39,38 @@ namespace Slate
         D2D1_RECT_F ToD2DRectangle(const Rectangle2D& rectangle)
         {
             return D2D1::RectF(
-                rectangle.X,
-                rectangle.Y,
-                rectangle.X + rectangle.Width,
-                rectangle.Y + rectangle.Height
+                rectangle.Position.X,
+                rectangle.Position.Y,
+                rectangle.Position.X + rectangle.Size.X,
+                rectangle.Position.Y + rectangle.Size.Y
             );
         }
     }
 
     void Renderer::Implementation::Create(
         HWND windowHandle,
-        unsigned int width,
-        unsigned int height
+        Vector2iu windowSize
     )
     {
-        CreateDeviceAndSwapChain(windowHandle, width, height);
+        CreateDeviceAndSwapChain(windowHandle, windowSize);
         CreateRenderTarget();
-        CreateDepthBuffer(width, height);
+        CreateDepthBuffer(windowSize);
         Create3DPipeline();
         Create2DResources();
-        SetViewport(width, height);
+        SetViewport(windowSize);
         m_Canvas2DCommands.reserve(64);
     }
 
     void Renderer::Implementation::CreateDeviceAndSwapChain(
         HWND windowHandle,
-        unsigned int width,
-        unsigned int height
+        Vector2iu windowSize
     )
     {
         m_IsTearingSupported = QueryTearingSupport();
 
         DXGI_SWAP_CHAIN_DESC swapChainDescription{};
-        swapChainDescription.BufferDesc.Width = width;
-        swapChainDescription.BufferDesc.Height = height;
+        swapChainDescription.BufferDesc.Width = windowSize.X;
+        swapChainDescription.BufferDesc.Height = windowSize.Y;
         swapChainDescription.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         swapChainDescription.BufferDesc.RefreshRate.Numerator = 0;
         swapChainDescription.BufferDesc.RefreshRate.Denominator = 1;
@@ -184,11 +182,11 @@ namespace Slate
         );
     }
 
-    void Renderer::Implementation::CreateDepthBuffer(unsigned int width, unsigned int height)
+    void Renderer::Implementation::CreateDepthBuffer(Vector2iu bufferSize)
     {
         D3D11_TEXTURE2D_DESC depthBufferDescription{};
-        depthBufferDescription.Width = width;
-        depthBufferDescription.Height = height;
+        depthBufferDescription.Width = bufferSize.X;
+        depthBufferDescription.Height = bufferSize.Y;
         depthBufferDescription.MipLevels = 1;
         depthBufferDescription.ArraySize = 1;
         depthBufferDescription.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -461,13 +459,13 @@ namespace Slate
         );
     }
 
-    void Renderer::Implementation::SetViewport(unsigned int width, unsigned int height)
+    void Renderer::Implementation::SetViewport(Vector2iu windowSize)
     {
         D3D11_VIEWPORT viewport{};
         viewport.TopLeftX = 0.0f;
         viewport.TopLeftY = 0.0f;
-        viewport.Width = static_cast<float>(width);
-        viewport.Height = static_cast<float>(height);
+        viewport.Width = static_cast<float>(windowSize.X);
+        viewport.Height = static_cast<float>(windowSize.Y);
         viewport.MinDepth = 0.0f;
         viewport.MaxDepth = 1.0f;
 
@@ -476,19 +474,18 @@ namespace Slate
             &viewport
         );
 
-        m_ViewportWidth = width;
-        m_ViewportHeight = height;
+        m_ViewportSize = windowSize;
         UpdateCameraMatrices();
     }
 
-    void Renderer::Implementation::Resize(unsigned int width, unsigned int height)
+    void Renderer::Implementation::Resize(Vector2iu windowSize)
     {
-        if (!m_D3D11SwapChain || width == 0 || height == 0)
+        if (!m_D3D11SwapChain || windowSize.GetLength() == 0)
         {
             return;
         }
 
-        if (width == m_ViewportWidth && height == m_ViewportHeight)
+        if (m_ViewportSize == windowSize)
         {
             return;
         }
@@ -507,8 +504,8 @@ namespace Slate
         ThrowIfFailed(
             m_D3D11SwapChain->ResizeBuffers(
                 0,
-                width,
-                height,
+                windowSize.X,
+                windowSize.Y,
                 DXGI_FORMAT_UNKNOWN,
                 m_IsTearingSupported
                     ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
@@ -518,10 +515,10 @@ namespace Slate
         );
 
         CreateRenderTarget();
-        CreateDepthBuffer(width, height);
+        CreateDepthBuffer(windowSize);
         Create2DRenderTarget();
 
-        SetViewport(width, height);
+        SetViewport(windowSize);
     }
 
     void Renderer::Implementation::Destroy()
@@ -623,14 +620,14 @@ namespace Slate
 
     void Renderer::Implementation::UpdateCameraMatrices()
     {
-        if (m_ViewportWidth == 0 || m_ViewportHeight == 0)
+        if (m_ViewportSize == Vector2iu{0, 0})
         {
             return;
         }
 
         const float aspectRatio =
-            static_cast<float>(m_ViewportWidth) /
-            static_cast<float>(m_ViewportHeight);
+            static_cast<float>(m_ViewportSize.X) /
+            static_cast<float>(m_ViewportSize.Y);
 
         m_ViewMatrix = Matrix4x4::View(m_Camera3D.Transform);
         m_ProjectionMatrix = Matrix4x4::Perspective(
@@ -793,7 +790,7 @@ namespace Slate
         const Mesh3DResource& mesh = GetMesh3D(meshHandle);
         const MaterialResource& material = GetMaterial(materialHandle);
 
-        if (m_ViewportWidth == 0 || m_ViewportHeight == 0)
+        if (m_ViewportSize == Vector2iu{ 0, 0 })
         {
             return;
         }
@@ -809,7 +806,7 @@ namespace Slate
         const Color& color,
         float cornerRadiusPixels)
     {
-        if (rectangle.Width <= 0.0f || rectangle.Height <= 0.0f)
+        if (rectangle.Size.X <= 0.0f || rectangle.Size.Y <= 0.0f)
         {
             return;
         }
@@ -830,8 +827,8 @@ namespace Slate
         const TextStyle& style)
     {
         if (text.empty() ||
-            bounds.Width <= 0.0f ||
-            bounds.Height <= 0.0f ||
+            bounds.Size.X <= 0.0f ||
+            bounds.Size.Y <= 0.0f ||
             style.FontSizePixels <= 0.0f)
         {
             return;
@@ -853,7 +850,7 @@ namespace Slate
         float opacity)
     {
         GetTexture2D(texture);
-        if (bounds.Width <= 0.0f || bounds.Height <= 0.0f)
+        if (bounds.Size.X <= 0.0f || bounds.Size.Y <= 0.0f)
         {
             return;
         }

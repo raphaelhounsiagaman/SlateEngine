@@ -66,8 +66,7 @@ namespace Slate
 	void Window::Create(const WindowInformation& info)
 	{
 		m_WindowInfo = info;
-		m_ClientWidthPixels = info.WidthPixels;
-		m_ClientHeightPixels = info.HeightPixels;
+		m_WindowSize = info.WindowSize;
 		m_ShouldClose = false;
 		m_IsMinimized = false;
 
@@ -88,8 +87,8 @@ namespace Slate
 		{
 			0,
 			0,
-			static_cast<LONG>(m_WindowInfo.WidthPixels),
-			static_cast<LONG>(m_WindowInfo.HeightPixels)
+			static_cast<LONG>(m_WindowInfo.WindowSize.X),
+			static_cast<LONG>(m_WindowInfo.WindowSize.Y)
 		};
 
 		if (!AdjustWindowRect(&windowRectangle, WS_OVERLAPPEDWINDOW, FALSE))
@@ -221,16 +220,15 @@ namespace Slate
 
 		case WM_SIZE:
 		{
-			m_ClientWidthPixels = LOWORD(lParam);
-			m_ClientHeightPixels = HIWORD(lParam);
+			m_WindowSize = { LOWORD(lParam), HIWORD(lParam) };
 			m_IsMinimized =
 				wParam == SIZE_MINIMIZED ||
-				m_ClientWidthPixels == 0 ||
-				m_ClientHeightPixels == 0;
+				m_WindowSize.X == 0 ||
+				m_WindowSize.Y == 0;
 
 			WindowResizeEvent event(
-				m_ClientWidthPixels,
-				m_ClientHeightPixels
+				m_WindowSize.X,
+				m_WindowSize.Y
 			);
 			if (m_EventCallback)
 			{

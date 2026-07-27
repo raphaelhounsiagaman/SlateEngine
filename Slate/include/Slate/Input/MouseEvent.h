@@ -19,8 +19,6 @@ namespace Slate
 
 		Vector2i GetPosition() const { return m_MousePosition; }
 		Vector2i GetDelta() const { return m_MouseDelta; }
-		int GetX() const { return m_MousePosition.X; }
-		int GetY() const { return m_MousePosition.Y; }
 
 		std::string ToString() const override
 		{
@@ -37,20 +35,20 @@ namespace Slate
 	{
 	public:
 		MouseScrolledEvent(float xOffset, float yOffset)
-			: m_XOffset(xOffset), m_YOffset(yOffset) {}
+			: m_Offset(xOffset, yOffset) 
+		{}
 
-		float GetXOffset() const { return m_XOffset; }
-		float GetYOffset() const { return m_YOffset; }
+		Vector2f GetOffset() const { return m_Offset; }
 
 		std::string ToString() const override
 		{
-			return std::format("MouseScrolledEvent: {}, {}", m_XOffset, m_YOffset);
+			return std::format("MouseScrolledEvent: {}, {}", m_Offset.X, m_Offset.Y);
 		}
 
 		EVENT_CLASS_TYPE(MouseScrolled)
 	private:
-		float m_XOffset;
-		float m_YOffset;
+		Vector2f m_Offset{};
+
 	};
 
 	class MouseButtonEvent : public Event

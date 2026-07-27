@@ -47,6 +47,7 @@ namespace Slate
 
 		const Slate::Window& GetWindow() const { return m_Window; }
 		Slate::Renderer& GetRenderer() { return m_Renderer; }
+
 		const PerformanceStatistics& GetPerformanceStatistics() const
 		{
 			return m_PerformanceStatistics;

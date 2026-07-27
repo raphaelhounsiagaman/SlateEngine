@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Color.h"
+#include "Slate/Math/Vector.h"
 
 #include <string>
 
@@ -8,18 +9,16 @@ namespace Slate
 {
 	struct Rectangle2D
 	{
-		float X = 0.0f;
-		float Y = 0.0f;
-		float Width = 0.0f;
-		float Height = 0.0f;
+		Vector2f Position{ 0, 0 };
+		Vector2f Size{ 0, 0 };
 
-		bool Contains(float x, float y) const
+		bool Contains(Vector2f point) const
 		{
 			return
-				x >= X &&
-				y >= Y &&
-				x <= X + Width &&
-				y <= Y + Height;
+				point.X >= Position.X &&
+				point.Y >= Position.Y &&
+				point.X <= Position.X + Size.X &&
+				point.Y <= Position.Y + Size.Y;
 		}
 	};
 

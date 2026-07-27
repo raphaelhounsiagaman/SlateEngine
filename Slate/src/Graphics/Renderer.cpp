@@ -12,9 +12,9 @@ namespace Slate
 	Renderer::~Renderer()
 	{}
 
-	void Renderer::Create(HWND windowHandle, unsigned int width, unsigned int height)
+	void Renderer::Create(HWND windowHandle, Vector2iu windowSize)
 	{
-		m_Implementation->Create(windowHandle, width, height);
+		m_Implementation->Create(windowHandle, windowSize);
 	}
 
 	void Renderer::Destroy()
@@ -32,11 +32,9 @@ namespace Slate
 		m_Implementation->Present(m_IsVSyncEnabled);
 	}
 
-	void Renderer::Resize(
-		unsigned int widthPixels,
-		unsigned int heightPixels)
+	void Renderer::Resize(Vector2iu windowSize)
 	{
-		m_Implementation->Resize(widthPixels, heightPixels);
+		m_Implementation->Resize(windowSize);
 	}
 
 	void Renderer::SetCamera3D(const Camera3D& camera)

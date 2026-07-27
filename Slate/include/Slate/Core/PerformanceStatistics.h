@@ -6,7 +6,6 @@ namespace Slate
 {
 	struct ApplicationLoopSettings
 	{
-		// A rate limit of zero means that stage is uncapped.
 		double UpdateRateLimit = 0.0;
 		double FrameRateLimit = 0.0;
 		float MaximumDeltaTimeSeconds = 0.1f;

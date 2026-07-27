@@ -60,10 +60,10 @@ namespace Slate
 		m_IsHovered =
 			m_IsVisible &&
 			m_IsEnabled &&
-			m_Bounds.Contains(
+			m_Bounds.Contains({
 				static_cast<float>(positionPixels.X),
 				static_cast<float>(positionPixels.Y)
-			);
+			});
 		return false;
 	}
 
@@ -76,10 +76,10 @@ namespace Slate
 			return false;
 		}
 
-		m_IsHovered = m_Bounds.Contains(
+		m_IsHovered = m_Bounds.Contains({
 			static_cast<float>(positionPixels.X),
 			static_cast<float>(positionPixels.Y)
-		);
+			});
 		m_IsPressed = m_IsHovered;
 		return m_IsPressed;
 	}
@@ -96,10 +96,10 @@ namespace Slate
 		const bool shouldClick =
 			m_IsVisible &&
 			m_IsEnabled &&
-			m_Bounds.Contains(
+			m_Bounds.Contains({
 				static_cast<float>(positionPixels.X),
 				static_cast<float>(positionPixels.Y)
-			);
+				});
 		m_IsPressed = false;
 		m_IsHovered = shouldClick;
 

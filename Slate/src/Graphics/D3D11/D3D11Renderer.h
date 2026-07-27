@@ -22,11 +22,11 @@ namespace Slate
 	{
 	public:
 
-		void Create(HWND windowHandle, unsigned int width, unsigned int height);
+		void Create(HWND windowHandle, Vector2iu windowSize);
 		void Destroy();
 		void BeginFrame(const Color& clearColor);
 		void Present(bool isVSyncEnabled);
-		void Resize(unsigned int width, unsigned int height);
+		void Resize(Vector2iu windowSize);
 		bool IsTearingSupported() const { return m_IsTearingSupported; }
 
 		void SetCamera3D(const Camera3D& camera);
@@ -135,18 +135,17 @@ namespace Slate
 
 		void CreateDeviceAndSwapChain(
 			HWND windowHandle,
-			unsigned int width,
-			unsigned int height
+			Vector2iu windowSize
 		);
 		bool QueryTearingSupport() const;
 		void CreateRenderTarget();
-		void CreateDepthBuffer(unsigned int width, unsigned int height);
+		void CreateDepthBuffer(Vector2iu bufferSize);
 		void Create3DPipeline();
 		void Create2DResources();
 		void Create2DRenderTarget();
 		void Destroy2DRenderTarget();
 		void CreateTextureBitmap(Texture2DResource& texture);
-		void SetViewport(unsigned int width, unsigned int height);
+		void SetViewport(Vector2iu viewportSize);
 		void UpdateCameraMatrices();
 
 		void ClearRenderTarget(const Color& color);
@@ -206,8 +205,7 @@ namespace Slate
 		Matrix4x4 m_ViewMatrix = Matrix4x4::Identity();
 		Matrix4x4 m_ProjectionMatrix = Matrix4x4::Identity();
 
-		unsigned int m_ViewportWidth = 0;
-		unsigned int m_ViewportHeight = 0;
+		Vector2iu m_ViewportSize{ 0, 0 };;
 
 		unsigned int m_NextMeshGeneration = 1;
 		unsigned int m_NextMaterialGeneration = 1;

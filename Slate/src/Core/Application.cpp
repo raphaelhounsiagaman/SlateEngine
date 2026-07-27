@@ -42,8 +42,7 @@ namespace Slate
 		m_Window.Create(info);
 		m_Renderer.Create(
 			m_Window.GetHandle(),
-			m_Window.GetClientWidthPixels(),
-			m_Window.GetClientHeightPixels()
+			m_Window.GetWindowSize()
 		);
 
 		m_Running = true;
@@ -282,9 +281,11 @@ namespace Slate
 
 	bool Application::OnWindowResize(WindowResizeEvent& event)
 	{
-		if (event.GetWidth() > 0 && event.GetHeight() > 0)
+		Vector2iu windowSize = event.GetWindowSize();
+
+		if (windowSize.X > 0 && windowSize.Y > 0)
 		{
-			m_Renderer.Resize(event.GetWidth(), event.GetHeight());
+			m_Renderer.Resize(event.GetWindowSize());
 		}
 		return false;
 	}

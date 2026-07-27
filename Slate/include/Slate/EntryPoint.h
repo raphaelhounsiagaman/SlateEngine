@@ -18,8 +18,7 @@ int WINAPI wWinMain(
 	Slate::WindowInformation windowInfo
 	{
 		L"Slate Application",
-		1280,
-		720,
+		{ 1280, 720 },
 		instanceHandle,
 		commandLine,
 		commandShow
@@ -30,7 +29,6 @@ int WINAPI wWinMain(
 		std::unique_ptr<Slate::Application> app =
 			Slate::CreateApplication(std::move(windowInfo));
 		app->Run();
-
 	}
 	catch (const std::exception& exception)
 	{

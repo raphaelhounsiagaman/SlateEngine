@@ -9,16 +9,16 @@ namespace Slate
 	{
 		Color() = default;
 		Color(
-			std::uint8_t r,
-			std::uint8_t g,
-			std::uint8_t b,
-			std::uint8_t a = 255)
+			uint8_t r,
+			uint8_t g,
+			uint8_t b,
+			uint8_t a = 255)
 			: R(r), G(g), B(b), A(a) {}
 
-		std::uint8_t R{ 255 };
-		std::uint8_t G{ 255 };
-		std::uint8_t B{ 255 };
-		std::uint8_t A{ 255 };
+		uint8_t R{ 255 };
+		uint8_t G{ 255 };
+		uint8_t B{ 255 };
+		uint8_t A{ 255 };
 
 		std::array<float, 4> GetFloatArray() const
 		{
