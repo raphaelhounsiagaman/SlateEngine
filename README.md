@@ -20,8 +20,8 @@ appear in a game's build configuration.
 - Resizable Win32 window and D3D11 swap chain
 - Mesh, material, camera, and transform-based 3D rendering
 - Canvas UI with labels, buttons, images, text styles, and hit testing
-- Independently configurable update and rendering rate limits
-- Engine-measured UPS, FPS, and average stage durations
+- One update and one render pass per frame
+- Renderer-owned canvas submission through `Renderer::DrawCanvas`
 - Optional VSync with capability-driven DXGI tearing when disabled
 - SI world-space convention: one world unit is one metre
 
@@ -82,28 +82,24 @@ Layer replacement is deferred safely:
 TransitionTo<GameLayer>();
 ```
 
+Submit a complete UI canvas to the renderer:
+
+```cpp
+Slate::Renderer& renderer = Slate::Application::Get().GetRenderer();
+renderer.DrawCanvas(canvas);
+```
+
 VSync can be enabled explicitly when desired:
 
 ```cpp
 Slate::Application::Get().GetRenderer().SetVSyncEnabled(true);
 ```
 
-Update and rendering rates are independently configurable. Zero keeps a stage
-uncapped:
-
-```cpp
-Slate::ApplicationLoopSettings settings;
-settings.UpdateRateLimit = 0.0;
-settings.FrameRateLimit = 0.0;
-Slate::Application::Get().SetLoopSettings(settings);
-```
-
-Measured rates and average stage durations are available from the application:
-
-```cpp
-const Slate::PerformanceStatistics& performance =
-    Slate::Application::Get().GetPerformanceStatistics();
-```
+Each application-loop iteration updates every layer once, renders every layer
+once, and presents once. The update callback receives raw wall-clock delta
+time, which a game can use to calculate FPS or drive its own timing systems.
+SlateEngine does not maintain separate update/render rate limits or performance
+counters.
 
 On Windows, SlateEngine queries `DXGI_FEATURE_PRESENT_ALLOW_TEARING` before
 creating the swap chain. Immediate presentation uses tearing only when the

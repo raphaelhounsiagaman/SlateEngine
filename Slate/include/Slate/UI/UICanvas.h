@@ -10,6 +10,9 @@
 
 namespace Slate
 {
+	class Renderer;
+	class UIElementVisitor;
+
 	class UICanvas
 	{
 	public:
@@ -31,15 +34,18 @@ namespace Slate
 		);
 
 		void OnEvent(Event& event);
-		void Render(Renderer& renderer) const;
 		void Clear();
 
 	private:
+		void VisitElements(UIElementVisitor& visitor) const;
+
 		bool OnMouseMoved(MouseMovedEvent& event);
 		bool OnMouseButtonPressed(MouseButtonPressedEvent& event);
 		bool OnMouseButtonReleased(MouseButtonReleasedEvent& event);
 		bool OnWindowLostFocus(WindowLostFocusEvent& event);
 
 		std::vector<std::unique_ptr<UIElement>> m_Elements;
+
+		friend class Renderer;
 	};
 }

@@ -174,7 +174,7 @@ namespace Slate
 
 		if (message == WM_NCCREATE)
 		{
-			const auto* creationData =
+			const CREATESTRUCTW* creationData =
 				reinterpret_cast<const CREATESTRUCTW*>(lParam);
 			window = static_cast<Window*>(creationData->lpCreateParams);
 

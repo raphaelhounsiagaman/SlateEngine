@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Slate/Graphics/Canvas2D.h"
 #include "Slate/Graphics/Renderer.h"
 
 #include <d2d1.h>
@@ -12,6 +13,7 @@
 
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -27,7 +29,6 @@ namespace Slate
 		void BeginFrame(const Color& clearColor);
 		void Present(bool isVSyncEnabled);
 		void Resize(Vector2iu windowSize);
-		bool IsTearingSupported() const { return m_IsTearingSupported; }
 
 		void SetCamera3D(const Camera3D& camera);
 

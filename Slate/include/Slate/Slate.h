@@ -8,7 +8,6 @@
 
 #include "Core/Application.h"
 #include "Core/ApplicationLayer.h"
-#include "Core/PerformanceStatistics.h"
 
 #include "Graphics/Camera3D.h"
 #include "Graphics/Canvas2D.h"

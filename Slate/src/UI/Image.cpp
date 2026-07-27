@@ -1,5 +1,7 @@
 #include "Slate/UI/Image.h"
 
+#include "UIElementVisitor.h"
+
 #include <algorithm>
 
 namespace Slate
@@ -19,11 +21,8 @@ namespace Slate
 		m_Opacity = std::clamp(opacity, 0.0f, 1.0f);
 	}
 
-	void Image::Render(Renderer& renderer) const
+	void Image::Accept(UIElementVisitor& visitor) const
 	{
-		if (m_IsVisible)
-		{
-			renderer.DrawTexture2D(m_Texture, m_Bounds, m_Opacity);
-		}
+		visitor.Visit(*this);
 	}
 }

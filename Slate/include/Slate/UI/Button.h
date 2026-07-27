@@ -47,7 +47,6 @@ namespace Slate
 		bool IsHovered() const { return m_IsHovered; }
 		bool IsPressed() const { return m_IsPressed; }
 
-		void Render(Renderer& renderer) const override;
 		bool OnMouseMoved(const Vector2i& positionPixels) override;
 		bool OnMouseButtonPressed(
 			MouseButton button,
@@ -60,6 +59,8 @@ namespace Slate
 		void CancelInteraction() override;
 
 	private:
+		void Accept(UIElementVisitor& visitor) const override;
+
 		std::wstring m_Text;
 		ClickHandler m_OnClick;
 		ButtonStyle m_Style;

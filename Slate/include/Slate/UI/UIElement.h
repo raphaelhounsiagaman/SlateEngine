@@ -1,12 +1,14 @@
 #pragma once
 
 #include "Slate/Graphics/Canvas2D.h"
-#include "Slate/Graphics/Renderer.h"
 #include "Slate/Input/MouseCodes.h"
 #include "Slate/Math/Vector.h"
 
 namespace Slate
 {
+	class UICanvas;
+	class UIElementVisitor;
+
 	class UIElement
 	{
 	public:
@@ -20,8 +22,6 @@ namespace Slate
 
 		void SetEnabled(bool isEnabled) { m_IsEnabled = isEnabled; }
 		bool IsEnabled() const { return m_IsEnabled; }
-
-		virtual void Render(Renderer& renderer) const = 0;
 
 		virtual bool OnMouseMoved(const Vector2i&) { return false; }
 		virtual bool OnMouseButtonPressed(
@@ -42,5 +42,10 @@ namespace Slate
 		Rectangle2D m_Bounds;
 		bool m_IsVisible = true;
 		bool m_IsEnabled = true;
+
+	private:
+		virtual void Accept(UIElementVisitor& visitor) const = 0;
+
+		friend class UICanvas;
 	};
 }

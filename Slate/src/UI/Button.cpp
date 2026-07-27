@@ -1,5 +1,7 @@
 #include "Slate/UI/Button.h"
 
+#include "UIElementVisitor.h"
+
 #include <utility>
 
 namespace Slate
@@ -26,33 +28,9 @@ namespace Slate
 		m_OnClick = std::move(onClick);
 	}
 
-	void Button::Render(Renderer& renderer) const
+	void Button::Accept(UIElementVisitor& visitor) const
 	{
-		if (!m_IsVisible)
-		{
-			return;
-		}
-
-		const Color* background = &m_Style.NormalColor;
-		if (!m_IsEnabled)
-		{
-			background = &m_Style.DisabledColor;
-		}
-		else if (m_IsPressed)
-		{
-			background = &m_Style.PressedColor;
-		}
-		else if (m_IsHovered)
-		{
-			background = &m_Style.HoveredColor;
-		}
-
-		renderer.DrawRectangle2D(
-			m_Bounds,
-			*background,
-			m_Style.CornerRadiusPixels
-		);
-		renderer.DrawText2D(m_Text, m_Bounds, m_Style.Text);
+		visitor.Visit(*this);
 	}
 
 	bool Button::OnMouseMoved(const Vector2i& positionPixels)

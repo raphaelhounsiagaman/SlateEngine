@@ -1,5 +1,7 @@
 #include "Slate/UI/Label.h"
 
+#include "UIElementVisitor.h"
+
 #include <utility>
 
 namespace Slate
@@ -18,11 +20,8 @@ namespace Slate
 		m_Text = std::move(text);
 	}
 
-	void Label::Render(Renderer& renderer) const
+	void Label::Accept(UIElementVisitor& visitor) const
 	{
-		if (m_IsVisible)
-		{
-			renderer.DrawText2D(m_Text, m_Bounds, m_Style);
-		}
+		visitor.Visit(*this);
 	}
 }

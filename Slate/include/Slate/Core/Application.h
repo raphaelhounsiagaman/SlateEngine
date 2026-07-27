@@ -5,7 +5,6 @@
 
 #include "Slate/Input/InputEvents.h"
 #include "ApplicationLayer.h"
-#include "PerformanceStatistics.h"
 
 #include <memory>
 #include <type_traits>
@@ -37,26 +36,19 @@ namespace Slate
 			requires(std::is_base_of_v<ApplicationLayer, TLayer>)
 		TLayer* GetLayer()
 		{
-			for (const auto& layer : m_LayerStack)
+			for (const std::unique_ptr<ApplicationLayer>& layer : m_LayerStack)
 			{
-				if (auto casted = dynamic_cast<TLayer*>(layer.get()))
-					return casted;
+				if (TLayer* castedLayer =
+					dynamic_cast<TLayer*>(layer.get()))
+				{
+					return castedLayer;
+				}
 			}
 			return nullptr;
 		}
 
 		const Slate::Window& GetWindow() const { return m_Window; }
 		Slate::Renderer& GetRenderer() { return m_Renderer; }
-
-		const PerformanceStatistics& GetPerformanceStatistics() const
-		{
-			return m_PerformanceStatistics;
-		}
-		const ApplicationLoopSettings& GetLoopSettings() const
-		{
-			return m_LoopSettings;
-		}
-		void SetLoopSettings(const ApplicationLoopSettings& settings);
 
 		static Application& Get();
 
@@ -82,8 +74,6 @@ namespace Slate
 		};
 
 		bool m_Running = false;
-		ApplicationLoopSettings m_LoopSettings;
-		PerformanceStatistics m_PerformanceStatistics;
 
 		std::vector<std::unique_ptr<ApplicationLayer>> m_LayerStack;
 		std::vector<LayerTransition> m_PendingLayerTransitions;

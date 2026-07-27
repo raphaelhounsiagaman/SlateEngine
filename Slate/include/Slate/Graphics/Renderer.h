@@ -3,7 +3,6 @@
 #include "Slate/Math/Math.h"
 
 #include "Camera3D.h"
-#include "Canvas2D.h"
 #include "Color.h"
 #include "Handles.h"
 #include "Vertex.h"
@@ -11,15 +10,14 @@
 #include <Windows.h>
 #include <filesystem>
 #include <memory>
-#include <span> 
-#include <string_view>
+#include <span>
 
 namespace Slate
 {
+	class UICanvas;
 
 	class Renderer
 	{
-
 	public:
 		Renderer();
 		~Renderer();
@@ -43,9 +41,6 @@ namespace Slate
 		}
 
 		bool IsVSyncEnabled() const { return m_IsVSyncEnabled; }
-		bool IsTearingSupported() const;
-
-	public:
 
 		Mesh3DHandle CreateMesh3D(
 			std::span<const Vertex3D> vertices,
@@ -57,37 +52,20 @@ namespace Slate
 			const std::filesystem::path& filePath
 		);
 
-	public:
-
-		void DrawMesh3D(const Mesh3DHandle& meshHandle, const MaterialHandle& materialHandle, const Transform3D& transform);
-		void DrawRectangle2D(
-			const Rectangle2D& rectangle,
-			const Color& color,
-			float cornerRadiusPixels = 0.0f
+		void DrawMesh3D(
+			const Mesh3DHandle& meshHandle,
+			const MaterialHandle& materialHandle,
+			const Transform3D& transform
 		);
-		void DrawText2D(
-			std::wstring_view text,
-			const Rectangle2D& bounds,
-			const TextStyle& style = {}
-		);
-		void DrawTexture2D(
-			const Texture2DHandle& texture,
-			const Rectangle2D& bounds,
-			float opacity = 1.0f
-		);
-
+		void DrawCanvas(const UICanvas& canvas);
 
 	private:
-		
 		class Implementation;
+		class CanvasVisitor;
+
 		std::unique_ptr<Implementation> m_Implementation;
 
 		Color m_ClearColor;
 		bool m_IsVSyncEnabled = false;
-
 	};
-
-
-
-
 }

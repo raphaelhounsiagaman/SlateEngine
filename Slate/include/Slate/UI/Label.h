@@ -21,9 +21,9 @@ namespace Slate
 		void SetStyle(const TextStyle& style) { m_Style = style; }
 		const TextStyle& GetStyle() const { return m_Style; }
 
-		void Render(Renderer& renderer) const override;
-
 	private:
+		void Accept(UIElementVisitor& visitor) const override;
+
 		std::wstring m_Text;
 		TextStyle m_Style;
 	};

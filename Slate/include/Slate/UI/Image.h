@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Slate/Graphics/Handles.h"
+
 #include "UIElement.h"
 
 namespace Slate
@@ -22,9 +24,9 @@ namespace Slate
 		void SetOpacity(float opacity);
 		float GetOpacity() const { return m_Opacity; }
 
-		void Render(Renderer& renderer) const override;
-
 	private:
+		void Accept(UIElementVisitor& visitor) const override;
+
 		Texture2DHandle m_Texture;
 		float m_Opacity = 1.0f;
 	};

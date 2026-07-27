@@ -1,9 +1,83 @@
 #include "Slate/Graphics/Renderer.h"
 
+#include "Slate/UI/Button.h"
+#include "Slate/UI/Image.h"
+#include "Slate/UI/Label.h"
+#include "Slate/UI/UICanvas.h"
+
 #include "D3D11/D3D11Renderer.h"
+#include "UI/UIElementVisitor.h"
 
 namespace Slate
 {
+	class Renderer::CanvasVisitor final : public UIElementVisitor
+	{
+	public:
+		explicit CanvasVisitor(Implementation& implementation)
+			: m_Implementation(implementation)
+		{}
+
+		void Visit(const Button& button) override
+		{
+			if (!button.IsVisible())
+			{
+				return;
+			}
+
+			const ButtonStyle& style = button.GetStyle();
+			const Color* backgroundColor = &style.NormalColor;
+			if (!button.IsEnabled())
+			{
+				backgroundColor = &style.DisabledColor;
+			}
+			else if (button.IsPressed())
+			{
+				backgroundColor = &style.PressedColor;
+			}
+			else if (button.IsHovered())
+			{
+				backgroundColor = &style.HoveredColor;
+			}
+
+			m_Implementation.DrawRectangle2D(
+				button.GetBounds(),
+				*backgroundColor,
+				style.CornerRadiusPixels
+			);
+			m_Implementation.DrawText2D(
+				button.GetText(),
+				button.GetBounds(),
+				style.Text
+			);
+		}
+
+		void Visit(const Image& image) override
+		{
+			if (image.IsVisible())
+			{
+				m_Implementation.DrawTexture2D(
+					image.GetTexture(),
+					image.GetBounds(),
+					image.GetOpacity()
+				);
+			}
+		}
+
+		void Visit(const Label& label) override
+		{
+			if (label.IsVisible())
+			{
+				m_Implementation.DrawText2D(
+					label.GetText(),
+					label.GetBounds(),
+					label.GetStyle()
+				);
+			}
+		}
+
+	private:
+		Implementation& m_Implementation;
+	};
 
 	Renderer::Renderer()
 		: m_Implementation(std::make_unique<Implementation>())
@@ -42,11 +116,6 @@ namespace Slate
 		m_Implementation->SetCamera3D(camera);
 	}
 
-	bool Renderer::IsTearingSupported() const
-	{
-		return m_Implementation->IsTearingSupported();
-	}
-
 	Mesh3DHandle Renderer::CreateMesh3D(
 		std::span<const Vertex3D> vertices,
 		std::span<const unsigned int> indices
@@ -75,32 +144,10 @@ namespace Slate
 		m_Implementation->DrawMesh3D(meshHandle, materialHandle, transform);
 	}
 
-	void Renderer::DrawRectangle2D(
-		const Rectangle2D& rectangle,
-		const Color& color,
-		float cornerRadiusPixels)
+	void Renderer::DrawCanvas(const UICanvas& canvas)
 	{
-		m_Implementation->DrawRectangle2D(
-			rectangle,
-			color,
-			cornerRadiusPixels
-		);
-	}
-
-	void Renderer::DrawText2D(
-		std::wstring_view text,
-		const Rectangle2D& bounds,
-		const TextStyle& style)
-	{
-		m_Implementation->DrawText2D(text, bounds, style);
-	}
-
-	void Renderer::DrawTexture2D(
-		const Texture2DHandle& texture,
-		const Rectangle2D& bounds,
-		float opacity)
-	{
-		m_Implementation->DrawTexture2D(texture, bounds, opacity);
+		CanvasVisitor visitor(*m_Implementation);
+		canvas.VisitElements(visitor);
 	}
 
 }

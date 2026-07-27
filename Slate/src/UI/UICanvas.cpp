@@ -13,7 +13,7 @@ namespace Slate
 		const Rectangle2D& bounds,
 		const TextStyle& style)
 	{
-		auto label = std::make_unique<Label>(
+		std::unique_ptr<Label> label = std::make_unique<Label>(
 			std::move(text),
 			bounds,
 			style
@@ -29,7 +29,7 @@ namespace Slate
 		Button::ClickHandler onClick,
 		const ButtonStyle& style)
 	{
-		auto button = std::make_unique<Button>(
+		std::unique_ptr<Button> button = std::make_unique<Button>(
 			std::move(text),
 			bounds,
 			std::move(onClick),
@@ -45,7 +45,8 @@ namespace Slate
 		const Rectangle2D& bounds,
 		float opacity)
 	{
-		auto image = std::make_unique<Image>(texture, bounds, opacity);
+		std::unique_ptr<Image> image =
+			std::make_unique<Image>(texture, bounds, opacity);
 		Image& result = *image;
 		m_Elements.push_back(std::move(image));
 		return result;
@@ -80,11 +81,11 @@ namespace Slate
 		);
 	}
 
-	void UICanvas::Render(Renderer& renderer) const
+	void UICanvas::VisitElements(UIElementVisitor& visitor) const
 	{
 		for (const std::unique_ptr<UIElement>& element : m_Elements)
 		{
-			element->Render(renderer);
+			element->Accept(visitor);
 		}
 	}
 
